@@ -2,20 +2,22 @@ type BetAmountInputProps = {
   onChange: (amount: number) => void;
   placeholder: string;
   svgPath: string;
+  className?: string;
 };
 
 export default function NumberInput({
   onChange,
   placeholder,
   svgPath,
+  className,
 }: BetAmountInputProps) {
   return (
     <div
-      className="flex w-max rounded-lg gap-2 p-2 border-1 items-center
+      className={`flex rounded-lg gap-2 p-2 border-1 items-center
         bg-gray-400 dark:bg-purple-950/10
         border-purple-500 dark:border-purple-700
         hover:disabled:cursor-not-allowed
-        focus:outline-none"
+        focus:outline-none ${className ?? ""}`}
     >
       <svg
         className="w-6 h-6 text-gray-800 dark:text-white"
@@ -36,7 +38,7 @@ export default function NumberInput({
       </svg>
 
       <input
-        className="w-52 h-16 focus:outline-none text-xl font-semibold caret-purple-400"
+        className="w-0 flex-1 min-w-0 h-16 focus:outline-none text-xl font-semibold caret-purple-400"
         type="text"
         inputMode="decimal"
         enterKeyHint="done"

@@ -22,7 +22,7 @@ describe("BetLogRoute Tests", () => {
     render(<Stub initialEntries={["/"]} />);
 
     expect(
-      await screen.findByText("gamba kappachungus deluxe")
+      await screen.findByText("gamba kappachungus deluxe"),
     ).toBeInTheDocument();
   });
 });

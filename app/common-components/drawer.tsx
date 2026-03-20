@@ -5,6 +5,7 @@ type DrawerProps = {
   triggerSize: string;
   width: string;
   children: ReactNode;
+  inline?: boolean;
 };
 
 /**
@@ -13,7 +14,13 @@ type DrawerProps = {
  * - Clicking the close (×) button or outside overlay closes it.
  * - Uses Tailwind CSS for styling and transitions.
  */
-const Drawer = ({ trigger, triggerSize, width, children }: DrawerProps) => {
+const Drawer = ({
+  trigger,
+  triggerSize,
+  width,
+  children,
+  inline,
+}: DrawerProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const openDrawer = () => setIsOpen(true);
@@ -25,7 +32,9 @@ const Drawer = ({ trigger, triggerSize, width, children }: DrawerProps) => {
       {!isOpen && (
         <button
           onClick={openDrawer}
-          className={`fixed ${triggerSize} bottom-4 right-4 shadow-black shadow-lg z-50 cursor-pointer focus:outline-none`}
+          className={`${
+            inline ? "" : "fixed bottom-4 right-4 z-50 "
+          }${triggerSize} shadow-black shadow-lg cursor-pointer focus:outline-none`}
           aria-label="Open Drawer"
         >
           {trigger}
