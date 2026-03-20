@@ -30,7 +30,10 @@ export default function SlideToConfirm({
     if (!isDragging || !trackRef.current) return;
     const trackRect = trackRef.current.getBoundingClientRect();
     const maxX = getMaxX();
-    const newX = Math.max(0, Math.min(e.clientX - trackRect.left - THUMB_SIZE / 2, maxX));
+    const newX = Math.max(
+      0,
+      Math.min(e.clientX - trackRect.left - THUMB_SIZE / 2, maxX),
+    );
     setDragX(newX);
     if (newX >= maxX) {
       setIsDragging(false);

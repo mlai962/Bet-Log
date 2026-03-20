@@ -64,7 +64,7 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
         <div className="px-4 pb-8">{children}</div>
       </div>
     </>,
-    document.body
+    document.body,
   );
 };
 

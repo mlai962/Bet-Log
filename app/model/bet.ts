@@ -47,7 +47,7 @@ export class Bet {
     userB: DocumentSnapshot<User, DocumentData>,
     teamA: DocumentSnapshot<Team, DocumentData>,
     teamB: DocumentSnapshot<Team, DocumentData>,
-    line: DocumentSnapshot<Line, DocumentData>
+    line: DocumentSnapshot<Line, DocumentData>,
   ) {
     this.id = id;
 

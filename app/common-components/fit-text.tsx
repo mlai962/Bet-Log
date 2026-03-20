@@ -55,7 +55,10 @@ export default function FitText({
       }
 
       // Always leave the element at the correct display size so ResizeObserver stabilises
-      const display = capRef.current !== undefined ? Math.min(natural, capRef.current) : natural;
+      const display =
+        capRef.current !== undefined
+          ? Math.min(natural, capRef.current)
+          : natural;
       el.style.fontSize = `${display}px`;
 
       setNaturalSize(natural);
@@ -68,7 +71,8 @@ export default function FitText({
     return () => observer.disconnect();
   }, [text, maxSize, minSize]);
 
-  const displaySize = cap !== undefined ? Math.min(naturalSize, cap) : naturalSize;
+  const displaySize =
+    cap !== undefined ? Math.min(naturalSize, cap) : naturalSize;
 
   return (
     <div ref={ref} className={className} style={{ fontSize: displaySize }}>

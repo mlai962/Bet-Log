@@ -65,8 +65,14 @@ export default function BetSummary({
   const [linePickerOpen, setLinePickerOpen] = useState(false);
   const [lineSearch, setLineSearch] = useState("");
 
-  const [overUnder, setOverUnder] = useState<OverUnder>({ over: true, value: 0.5 });
-  const [handicap, setHandicap] = useState<Handicap>({ plus: true, value: 0.5 });
+  const [overUnder, setOverUnder] = useState<OverUnder>({
+    over: true,
+    value: 0.5,
+  });
+  const [handicap, setHandicap] = useState<Handicap>({
+    plus: true,
+    value: 0.5,
+  });
 
   const TEAM_MAX_FONT_SIZE = 64;
   const [teamAFitSize, setTeamAFitSize] = useState<number | null>(null);
@@ -107,7 +113,11 @@ export default function BetSummary({
     border-purple-500 dark:border-purple-700
     hover:bg-purple-200 dark:hover:bg-purple-600
     active:bg-purple-300 dark:active:bg-purple-500
-    ${isSelected ? "bg-purple-300 dark:bg-purple-500/75" : "bg-gray-400 dark:bg-purple-700/50"}`;
+    ${
+      isSelected
+        ? "bg-purple-300 dark:bg-purple-500/75"
+        : "bg-gray-400 dark:bg-purple-700/50"
+    }`;
 
   const userOptions = users.map((u) => (
     <option key={u.id} value={u.id} className="bg-gray-900">
@@ -137,9 +147,17 @@ export default function BetSummary({
               onClick={() => openTeamPicker("A")}
               className="w-full cursor-pointer hover:opacity-70 active:opacity-50 transition-opacity overflow-hidden"
             >
-              {teamA
-                ? <FitText text={teamA.name} maxSize={TEAM_MAX_FONT_SIZE} cap={syncedCap} onFitSize={setTeamAFitSize} className="w-full whitespace-nowrap overflow-hidden font-bold" />
-                : <span className="text-2xl text-purple-600">team 1</span>}
+              {teamA ? (
+                <FitText
+                  text={teamA.name}
+                  maxSize={TEAM_MAX_FONT_SIZE}
+                  cap={syncedCap}
+                  onFitSize={setTeamAFitSize}
+                  className="w-full whitespace-nowrap overflow-hidden font-bold"
+                />
+              ) : (
+                <span className="text-2xl text-purple-600">team 1</span>
+              )}
             </button>
             <select
               value={userA?.id ?? ""}
@@ -158,9 +176,17 @@ export default function BetSummary({
               onClick={() => openTeamPicker("B")}
               className="w-full cursor-pointer hover:opacity-70 active:opacity-50 transition-opacity overflow-hidden"
             >
-              {teamB
-                ? <FitText text={teamB.name} maxSize={TEAM_MAX_FONT_SIZE} cap={syncedCap} onFitSize={setTeamBFitSize} className="w-full whitespace-nowrap overflow-hidden font-bold" />
-                : <span className="text-2xl text-purple-600">team 2</span>}
+              {teamB ? (
+                <FitText
+                  text={teamB.name}
+                  maxSize={TEAM_MAX_FONT_SIZE}
+                  cap={syncedCap}
+                  onFitSize={setTeamBFitSize}
+                  className="w-full whitespace-nowrap overflow-hidden font-bold"
+                />
+              ) : (
+                <span className="text-2xl text-purple-600">team 2</span>
+              )}
             </button>
             <select
               value={userB?.id ?? ""}
@@ -289,7 +315,9 @@ export default function BetSummary({
 
           <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
             {lines
-              .filter((l) => l.name.toLowerCase().includes(lineSearch.toLowerCase()))
+              .filter((l) =>
+                l.name.toLowerCase().includes(lineSearch.toLowerCase()),
+              )
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((l) => (
                 <button

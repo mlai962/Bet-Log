@@ -76,17 +76,17 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             const line = await getDoc(docData.line);
 
             return new Bet(docData, doc.id, userA, userB, teamA, teamB, line);
-          })
+          }),
         );
 
         setBets(
-          [...bets].sort((a, b) => b.date.toMillis() - a.date.toMillis())
+          [...bets].sort((a, b) => b.date.toMillis() - a.date.toMillis()),
         );
 
         setIsShowBetSubmitSpinner(false);
         setIsShowBetSettlementSpinner(false);
         setCurrentBetIdBeingSettled("");
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -215,7 +215,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       });
 
       const updated = bets.map((bet) =>
-        bet.id === betId ? { ...bet, winner: winner } : bet
+        bet.id === betId ? { ...bet, winner: winner } : bet,
       );
 
       setBets(updated);
@@ -289,7 +289,11 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     hover:bg-purple-200 dark:hover:bg-purple-600
     active:bg-purple-300 dark:active:bg-purple-500
     hover:cursor-pointer
-    ${active ? "bg-purple-300 dark:bg-purple-500/75" : "bg-gray-400 dark:bg-purple-700/50"}`;
+    ${
+      active
+        ? "bg-purple-300 dark:bg-purple-500/75"
+        : "bg-gray-400 dark:bg-purple-700/50"
+    }`;
 
   return (
     <main className="flex-col p-8 space-y-4">
@@ -310,42 +314,44 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         )}
 
         {/* Show Balances */}
-        {!isAddEntryDrawerOpen && !isTeamPickerOpen && !isLinePickerOpen && <Drawer
-          trigger={
-            <div className="w-full h-full rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold hover:bg-gray-800 hover:border-2 flex items-center justify-center">
-              $
-            </div>
-          }
-          triggerSize="w-14 h-14"
-          width="w-80"
-          inline
-        >
-          <div className="flex-col space-y-4">
-            {users.map((u) => {
-              return (
-                <div key={`${u.id}-profit`}>
-                  <div className="font-extrabold underline">{u.name}</div>
-                  <div>
-                    Total Net Profit:{" "}
-                    {formatProfit(calculateProfit(u.name, "", bets))}
-                    {users
-                      .filter((u2) => u2.id != u.id)
-                      .map((u2) => {
-                        return (
-                          <div key={`${u.id}-${u2.id}-profit`}>
-                            Profit vs {u2.name}:{" "}
-                            {formatProfit(
-                              calculateProfit(u.name, u2.name, bets)
-                            )}
-                          </div>
-                        );
-                      })}
+        {!isAddEntryDrawerOpen && !isTeamPickerOpen && !isLinePickerOpen && (
+          <Drawer
+            trigger={
+              <div className="w-full h-full rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold hover:bg-gray-800 hover:border-2 flex items-center justify-center">
+                $
+              </div>
+            }
+            triggerSize="w-14 h-14"
+            width="w-80"
+            inline
+          >
+            <div className="flex-col space-y-4">
+              {users.map((u) => {
+                return (
+                  <div key={`${u.id}-profit`}>
+                    <div className="font-extrabold underline">{u.name}</div>
+                    <div>
+                      Total Net Profit:{" "}
+                      {formatProfit(calculateProfit(u.name, "", bets))}
+                      {users
+                        .filter((u2) => u2.id != u.id)
+                        .map((u2) => {
+                          return (
+                            <div key={`${u.id}-${u2.id}-profit`}>
+                              Profit vs {u2.name}:{" "}
+                              {formatProfit(
+                                calculateProfit(u.name, u2.name, bets),
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </Drawer>}
+                );
+              })}
+            </div>
+          </Drawer>
+        )}
       </div>
 
       {/* Add Entry Bottom Drawer */}
@@ -404,7 +410,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                 <div className="w-full flex justify-between">
                   <button
                     className={lineTypeButtonClass(
-                      newLineType === LineType.NONE
+                      newLineType === LineType.NONE,
                     )}
                     onClick={() => setNewLineType(LineType.NONE)}
                   >
@@ -412,7 +418,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                   </button>
                   <button
                     className={lineTypeButtonClass(
-                      newLineType === LineType.OVER_UNDER
+                      newLineType === LineType.OVER_UNDER,
                     )}
                     onClick={() => setNewLineType(LineType.OVER_UNDER)}
                   >
@@ -420,7 +426,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                   </button>
                   <button
                     className={lineTypeButtonClass(
-                      newLineType === LineType.HANDICAP
+                      newLineType === LineType.HANDICAP,
                     )}
                     onClick={() => setNewLineType(LineType.HANDICAP)}
                   >
@@ -451,80 +457,96 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       </div>
 
       <div className="w-full max-w-lg mx-auto space-y-2">
-      <BetSummary
-        users={users}
-        teams={teams}
-        userA={selectedUserIds[0] ? users.find((u) => u.id === selectedUserIds[0]) ?? null : null}
-        userB={selectedUserIds[1] ? users.find((u) => u.id === selectedUserIds[1]) ?? null : null}
-        onUserAChange={handleUserAChange}
-        onUserBChange={handleUserBChange}
-        teamA={selectedTeamIds[0] ? teams.find((t) => t.id === selectedTeamIds[0]) ?? null : null}
-        teamB={selectedTeamIds[1] ? teams.find((t) => t.id === selectedTeamIds[1]) ?? null : null}
-        onTeamAChange={handleTeamAChange}
-        onTeamBChange={handleTeamBChange}
-        onTeamPickerOpenChange={setIsTeamPickerOpen}
-        maps={maps}
-        selectedMapId={selectedMapId}
-        onMapChange={setSelectedMapId}
-        lines={lines}
-        selectedLineId={selectedLineId}
-        onLineChange={setSelectedLineId}
-        onLinePickerOpenChange={setIsLinePickerOpen}
-        onOverUnderChange={setOverUnder}
-        onHandicapChange={setHandicap}
-        odds={odds}
-        betAmount={betAmount}
-        date={date}
-      />
+        <BetSummary
+          users={users}
+          teams={teams}
+          userA={
+            selectedUserIds[0]
+              ? users.find((u) => u.id === selectedUserIds[0]) ?? null
+              : null
+          }
+          userB={
+            selectedUserIds[1]
+              ? users.find((u) => u.id === selectedUserIds[1]) ?? null
+              : null
+          }
+          onUserAChange={handleUserAChange}
+          onUserBChange={handleUserBChange}
+          teamA={
+            selectedTeamIds[0]
+              ? teams.find((t) => t.id === selectedTeamIds[0]) ?? null
+              : null
+          }
+          teamB={
+            selectedTeamIds[1]
+              ? teams.find((t) => t.id === selectedTeamIds[1]) ?? null
+              : null
+          }
+          onTeamAChange={handleTeamAChange}
+          onTeamBChange={handleTeamBChange}
+          onTeamPickerOpenChange={setIsTeamPickerOpen}
+          maps={maps}
+          selectedMapId={selectedMapId}
+          onMapChange={setSelectedMapId}
+          lines={lines}
+          selectedLineId={selectedLineId}
+          onLineChange={setSelectedLineId}
+          onLinePickerOpenChange={setIsLinePickerOpen}
+          onOverUnderChange={setOverUnder}
+          onHandicapChange={setHandicap}
+          odds={odds}
+          betAmount={betAmount}
+          date={date}
+        />
 
-      <div className="space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <NumberInput
-            onChange={(odds) => setOdds(odds)}
-            placeholder="odds..."
-            className=""
-            svgPath="M8.891 15.107 15.11 8.89m-5.183-.52h.01m3.089 7.254h.01M14.08 3.902a2.849 2.849 0 0 0 2.176.902 2.845 2.845 0 0 1 2.94 2.94 2.849 2.849 0 0 0 .901 2.176 2.847 2.847 0 0 1 0 4.16 2.848 2.848 0 0 0-.901 2.175 2.843 2.843 0 0 1-2.94 2.94 2.848 2.848 0 0 0-2.176.902 2.847 2.847 0 0 1-4.16 0 2.85 2.85 0 0 0-2.176-.902 2.845 2.845 0 0 1-2.94-2.94 2.848 2.848 0 0 0-.901-2.176 2.848 2.848 0 0 1 0-4.16 2.849 2.849 0 0 0 .901-2.176 2.845 2.845 0 0 1 2.941-2.94 2.849 2.849 0 0 0 2.176-.901 2.847 2.847 0 0 1 4.159 0Z"
-          />
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <NumberInput
+              onChange={(odds) => setOdds(odds)}
+              placeholder="odds..."
+              className=""
+              svgPath="M8.891 15.107 15.11 8.89m-5.183-.52h.01m3.089 7.254h.01M14.08 3.902a2.849 2.849 0 0 0 2.176.902 2.845 2.845 0 0 1 2.94 2.94 2.849 2.849 0 0 0 .901 2.176 2.847 2.847 0 0 1 0 4.16 2.848 2.848 0 0 0-.901 2.175 2.843 2.843 0 0 1-2.94 2.94 2.848 2.848 0 0 0-2.176.902 2.847 2.847 0 0 1-4.16 0 2.85 2.85 0 0 0-2.176-.902 2.845 2.845 0 0 1-2.94-2.94 2.848 2.848 0 0 0-.901-2.176 2.848 2.848 0 0 1 0-4.16 2.849 2.849 0 0 0 .901-2.176 2.845 2.845 0 0 1 2.941-2.94 2.849 2.849 0 0 0 2.176-.901 2.847 2.847 0 0 1 4.159 0Z"
+            />
 
-          <NumberInput
-            onChange={(amount) => setBetAmount(amount)}
-            placeholder="bet amount..."
-            className=""
-            svgPath="M8 17.345a4.76 4.76 0 0 0 2.558 1.618c2.274.589 4.512-.446 4.999-2.31.487-1.866-1.273-3.9-3.546-4.49-2.273-.59-4.034-2.623-3.547-4.488.486-1.865 2.724-2.899 4.998-2.31.982.236 1.87.793 2.538 1.592m-3.879 12.171V21m0-18v2.2"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div
-            className="h-[82px] p-2 rounded-lg border-1 text-purple-200 overflow-hidden
-              bg-gray-400 dark:bg-purple-950/10
-              border-purple-500 dark:border-purple-700"
-          >
-            <input
-              type="date"
-              value={date}
-              className="w-full min-w-0 h-full focus:outline-none"
-              onChange={(e) => setDate(e.target.value)}
+            <NumberInput
+              onChange={(amount) => setBetAmount(amount)}
+              placeholder="bet amount..."
+              className=""
+              svgPath="M8 17.345a4.76 4.76 0 0 0 2.558 1.618c2.274.589 4.512-.446 4.999-2.31.487-1.866-1.273-3.9-3.546-4.49-2.273-.59-4.034-2.623-3.547-4.488.486-1.865 2.724-2.899 4.998-2.31.982.236 1.87.793 2.538 1.592m-3.879 12.171V21m0-18v2.2"
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => handleBetSubmit()}
-            className="h-[82px] rounded-lg border-1 text-purple-200 relative
+          <div className="grid grid-cols-2 gap-2">
+            <div
+              className="h-[82px] p-2 rounded-lg border-1 text-purple-200 overflow-hidden
+              bg-gray-400 dark:bg-purple-950/10
+              border-purple-500 dark:border-purple-700"
+            >
+              <input
+                type="date"
+                value={date}
+                className="w-full min-w-0 h-full focus:outline-none"
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleBetSubmit()}
+              className="h-[82px] rounded-lg border-1 text-purple-200 relative
               bg-gray-400 dark:bg-purple-950/10
               border-purple-500 dark:border-purple-700
               hover:bg-purple-200 dark:hover:bg-purple-600
               active:bg-purple-300 dark:active:bg-purple-500
               hover:cursor-pointer hover:disabled:cursor-not-allowed"
-          >
-            <span className={`${isShowBetSubmitSpinner ? "opacity-20" : ""}`}>
-              submit gamba
-            </span>
-            <Spinner isShowSpinner={isShowBetSubmitSpinner} />
-          </button>
+            >
+              <span className={`${isShowBetSubmitSpinner ? "opacity-20" : ""}`}>
+                submit gamba
+              </span>
+              <Spinner isShowSpinner={isShowBetSubmitSpinner} />
+            </button>
+          </div>
         </div>
-      </div>
       </div>
 
       <div className="w-full min-h-32 relative">
