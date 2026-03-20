@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Bet,
   EXTRA_BINARY_LINE_OPTION,
@@ -5,6 +6,8 @@ import {
 } from "../model/bet";
 import { LineType } from "../model/line";
 import Spinner from "../common-components/spinner";
+import BottomDrawer from "../common-components/bottom-drawer";
+import SlideToConfirm from "../common-components/slide-to-confirm";
 
 type BetHistoryProps = {
   bets: Bet[];
@@ -21,7 +24,22 @@ export default function BetHistory({
   isShowBetSettlementSpinner,
   currentBetIdBeingSettled,
 }: BetHistoryProps) {
+  const [deletingBetId, setDeletingBetId] = useState<string | null>(null);
+
   return (
+    <>
+    <BottomDrawer isOpen={deletingBetId !== null} onClose={() => setDeletingBetId(null)}>
+      <div className="space-y-4 text-purple-200">
+        <div className="text-xl font-bold text-center">Delete Bet?</div>
+        <SlideToConfirm
+          label="slide to delete"
+          onConfirm={() => {
+            handleBetDeletion(deletingBetId!);
+            setDeletingBetId(null);
+          }}
+        />
+      </div>
+    </BottomDrawer>
     <div className="w-full h-max flex justify-center">
       <div className="w-max space-y-1 flex flex-col">
         {bets.map((bet) => {
@@ -133,7 +151,7 @@ export default function BetHistory({
                 height="24"
                 fill="none"
                 viewBox="0 0 24 24"
-                onClick={() => handleBetDeletion(bet.id)}
+                onClick={() => setDeletingBetId(bet.id)}
               >
                 <path
                   stroke="currentColor"
@@ -155,5 +173,6 @@ export default function BetHistory({
         })}
       </div>
     </div>
+    </>
   );
 }
