@@ -31,7 +31,7 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
         aria-hidden="true"
       />
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-950 border-t-2 border-purple-800 shadow-xl rounded-t-2xl z-50 transition-transform duration-300 ease-in-out ${
+        className={`fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white dark:bg-gray-950 border-t-2 border-x-2 border-purple-800 shadow-xl rounded-t-2xl z-50 transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-y-0" : "translate-y-full"
         }`}
         role="dialog"
