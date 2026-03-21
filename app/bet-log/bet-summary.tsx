@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Handicap, OverUnder } from "../model/binary-option-and-number";
 import { LineType, type Line } from "../model/line";
 import type { Team } from "../model/team";
+import { getCategories, getLeagues, groupTeams } from "../model/team-grouping";
 import type { User } from "../model/user";
 import BottomDrawer from "../common-components/bottom-drawer";
 import FitText from "../common-components/fit-text";
@@ -61,7 +62,15 @@ export default function BetSummary({
   date,
 }: BetSummaryProps) {
   const [teamPickerSlot, setTeamPickerSlot] = useState<"A" | "B" | null>(null);
+  const [pickerScreen, setPickerScreen] = useState<
+    "sport" | "league" | "category" | "team"
+  >("sport");
+  const [pickerSport, setPickerSport] = useState<string | null>(null);
+  const [pickerLeague, setPickerLeague] = useState<string | null>(null);
+  const [pickerCat, setPickerCat] = useState<string | null>(null);
   const [teamSearch, setTeamSearch] = useState("");
+
+  const teamGroups = useMemo(() => groupTeams(teams), [teams]);
   const [linePickerOpen, setLinePickerOpen] = useState(false);
   const [lineSearch, setLineSearch] = useState("");
 
@@ -85,13 +94,96 @@ export default function BetSummary({
 
   const openTeamPicker = (slot: "A" | "B") => {
     setTeamPickerSlot(slot);
+    setPickerScreen("sport");
+    setPickerSport(null);
+    setPickerLeague(null);
+    setPickerCat(null);
+    setTeamSearch("");
     onTeamPickerOpenChange(true);
   };
 
   const closeTeamPicker = () => {
     setTeamPickerSlot(null);
+    setPickerScreen("sport");
+    setPickerSport(null);
+    setPickerLeague(null);
+    setPickerCat(null);
     setTeamSearch("");
     onTeamPickerOpenChange(false);
+  };
+
+  /** Advance picker after sport is chosen */
+  const selectSport = (sport: string) => {
+    setPickerSport(sport);
+    const group = teamGroups.find((g) => g.sport === sport);
+    if (!group) return;
+    const leagues = getLeagues(group);
+    if (leagues.length >= 2) {
+      setPickerScreen("league");
+    } else {
+      const league = group.leagues[0]?.league ?? "";
+      setPickerLeague(league);
+      const leagueGroup = group.leagues[0];
+      const cats = leagueGroup ? getCategories(leagueGroup) : [];
+      if (cats.length >= 2) {
+        setPickerScreen("category");
+      } else {
+        setPickerCat(leagueGroup?.entries[0]?.category ?? "");
+        setPickerScreen("team");
+      }
+    }
+  };
+
+  /** Advance picker after league is chosen */
+  const selectLeague = (league: string) => {
+    setPickerLeague(league);
+    const group = teamGroups.find((g) => g.sport === pickerSport);
+    const leagueGroup = group?.leagues.find((l) => l.league === league);
+    const cats = leagueGroup ? getCategories(leagueGroup) : [];
+    if (cats.length >= 2) {
+      setPickerScreen("category");
+    } else {
+      setPickerCat(leagueGroup?.entries[0]?.category ?? "");
+      setPickerScreen("team");
+    }
+  };
+
+  /** Go back one level in the picker */
+  const pickerGoBack = () => {
+    if (pickerScreen === "team") {
+      const group = teamGroups.find((g) => g.sport === pickerSport);
+      const leagueGroup = group?.leagues.find((l) => l.league === pickerLeague);
+      if (leagueGroup && getCategories(leagueGroup).length >= 2) {
+        setPickerCat(null);
+        setPickerScreen("category");
+      } else if (group && getLeagues(group).length >= 2) {
+        setPickerLeague(null);
+        setPickerCat(null);
+        setPickerScreen("league");
+      } else {
+        setPickerSport(null);
+        setPickerLeague(null);
+        setPickerCat(null);
+        setPickerScreen("sport");
+      }
+    } else if (pickerScreen === "category") {
+      const group = teamGroups.find((g) => g.sport === pickerSport);
+      if (group && getLeagues(group).length >= 2) {
+        setPickerLeague(null);
+        setPickerCat(null);
+        setPickerScreen("league");
+      } else {
+        setPickerSport(null);
+        setPickerLeague(null);
+        setPickerCat(null);
+        setPickerScreen("sport");
+      }
+    } else if (pickerScreen === "league") {
+      setPickerSport(null);
+      setPickerLeague(null);
+      setPickerCat(null);
+      setPickerScreen("sport");
+    }
   };
 
   const openLinePicker = () => {
@@ -126,9 +218,36 @@ export default function BetSummary({
   ));
 
   const activeTeam = teamPickerSlot === "A" ? teamA : teamB;
-  const filteredTeams = teams
-    .filter((t) => t.name.toLowerCase().includes(teamSearch.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+
+  /** Teams visible on the final "team" screen */
+  const pickerTeams = useMemo(() => {
+    if (pickerScreen !== "team") return [];
+    return teams
+      .filter(
+        (t) =>
+          (t.sport?.trim() || "Uncategorised") === pickerSport &&
+          (t.league?.trim() || "") === (pickerLeague ?? "") &&
+          (t.category?.trim() || "") === (pickerCat ?? "") &&
+          t.name.toLowerCase().includes(teamSearch.toLowerCase()),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [teams, pickerScreen, pickerSport, pickerLeague, pickerCat, teamSearch]);
+
+  const pickerTitle =
+    pickerScreen === "league"
+      ? "Select League"
+      : pickerScreen === "category"
+      ? "Select Category"
+      : `Select Team ${teamPickerSlot === "A" ? "1" : "2"}`;
+
+  const pickerSubtitle =
+    pickerScreen === "league"
+      ? pickerSport
+      : pickerScreen === "category"
+      ? [pickerSport, pickerLeague].filter(Boolean).join(" › ")
+      : pickerScreen === "team"
+      ? [pickerSport, pickerLeague, pickerCat].filter(Boolean).join(" › ")
+      : null;
 
   const selectedLine = lines.find((l) => l.id === selectedLineId) ?? null;
   const selectedMap = maps.find((m) => m.id === selectedMapId) ?? null;
@@ -262,43 +381,139 @@ export default function BetSummary({
       </div>
 
       {/* Team picker drawer */}
-      <BottomDrawer isOpen={teamPickerSlot !== null} onClose={closeTeamPicker} direction="top">
+      <BottomDrawer
+        isOpen={teamPickerSlot !== null}
+        onClose={closeTeamPicker}
+        direction="top"
+      >
         <div className="space-y-3 text-purple-200">
-          <div className="text-xl font-bold text-center">
-            Select Team {teamPickerSlot === "A" ? "1" : "2"}
-          </div>
-
-          <input
-            type="text"
-            placeholder="Search teams..."
-            value={teamSearch}
-            onChange={(e) => setTeamSearch(e.target.value)}
-            className="w-full h-10 rounded-lg px-3 border-1 bg-transparent
-              border-purple-500 dark:border-purple-700
-              text-purple-200 focus:outline-none"
-            autoFocus
-          />
-
-          <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
-            {filteredTeams.map((t) => (
+          {/* Header: back button + title */}
+          <div className="flex items-center gap-2">
+            {pickerScreen !== "sport" && (
               <button
-                key={t.id}
-                className={pillClass(t.id === activeTeam?.id)}
-                onClick={() => {
-                  if (teamPickerSlot === "A") onTeamAChange(t.id);
-                  else onTeamBChange(t.id);
-                  closeTeamPicker();
-                }}
+                onClick={pickerGoBack}
+                className="text-purple-400 hover:text-purple-200 active:text-purple-100 p-1 cursor-pointer"
+                aria-label="Go back"
               >
-                {t.name}
+                ←
               </button>
-            ))}
+            )}
+            <div className="flex-1 text-center">
+              <div className="text-xl font-bold">{pickerTitle}</div>
+              {pickerSubtitle && (
+                <div className="text-sm text-purple-400">{pickerSubtitle}</div>
+              )}
+            </div>
+            {/* Spacer to balance the back button */}
+            {pickerScreen !== "sport" && <div className="w-7" />}
           </div>
+
+          {/* Sport screen */}
+          {pickerScreen === "sport" && (
+            <div className="space-y-2 max-h-64 overflow-y-auto pb-1">
+              {teamGroups.map((g) => (
+                <button
+                  key={g.sport}
+                  onClick={() => selectSport(g.sport)}
+                  className="w-full py-3 px-4 rounded-lg text-left font-semibold border-1
+                    border-purple-500 dark:border-purple-700
+                    bg-gray-400 dark:bg-purple-700/50
+                    hover:bg-purple-200 dark:hover:bg-purple-600
+                    active:bg-purple-300 dark:active:bg-purple-500
+                    cursor-pointer"
+                >
+                  {g.sport}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* League screen */}
+          {pickerScreen === "league" &&
+            (() => {
+              const group = teamGroups.find((g) => g.sport === pickerSport);
+              return (
+                <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
+                  {group?.leagues.map((lg) => (
+                    <button
+                      key={lg.league}
+                      className={pillClass(lg.league === pickerLeague)}
+                      onClick={() => selectLeague(lg.league)}
+                    >
+                      {lg.league || "(none)"}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
+          {/* Category screen */}
+          {pickerScreen === "category" &&
+            (() => {
+              const group = teamGroups.find((g) => g.sport === pickerSport);
+              const leagueGroup = group?.leagues.find(
+                (l) => l.league === pickerLeague,
+              );
+              return (
+                <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
+                  {leagueGroup?.entries.map((entry) => (
+                    <button
+                      key={entry.category}
+                      className={pillClass(entry.category === pickerCat)}
+                      onClick={() => {
+                        setPickerCat(entry.category);
+                        setPickerScreen("team");
+                      }}
+                    >
+                      {entry.category || "(none)"}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
+          {/* Team screen */}
+          {pickerScreen === "team" && (
+            <>
+              <input
+                type="text"
+                placeholder="Search teams..."
+                value={teamSearch}
+                onChange={(e) => setTeamSearch(e.target.value)}
+                className="w-full h-10 rounded-lg px-3 border-1 bg-transparent
+                  border-purple-500 dark:border-purple-700
+                  text-purple-200 focus:outline-none"
+                autoFocus
+              />
+              <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
+                {pickerTeams.map((t) => (
+                  <button
+                    key={t.id}
+                    className={pillClass(t.id === activeTeam?.id)}
+                    onClick={() => {
+                      if (teamPickerSlot === "A") onTeamAChange(t.id);
+                      else onTeamBChange(t.id);
+                      closeTeamPicker();
+                    }}
+                  >
+                    {t.name}
+                  </button>
+                ))}
+                {pickerTeams.length === 0 && (
+                  <div className="text-purple-500 text-sm">No teams found.</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </BottomDrawer>
 
       {/* Line picker drawer */}
-      <BottomDrawer isOpen={linePickerOpen} onClose={closeLinePicker} direction="top">
+      <BottomDrawer
+        isOpen={linePickerOpen}
+        onClose={closeLinePicker}
+        direction="top"
+      >
         <div className="space-y-3 text-purple-200">
           <div className="text-xl font-bold text-center">Select Line</div>
 

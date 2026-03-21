@@ -245,11 +245,23 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     useState<CollectionName | null>(null);
   const [newOptionName, setNewOptionName] = useState<string>("");
   const [newLineType, setNewLineType] = useState<LineType>(LineType.NONE);
+  const [newTeamSport, setNewTeamSport] = useState<string>("");
+  const [newTeamLeague, setNewTeamLeague] = useState<string>("");
+  const [newTeamCategory, setNewTeamCategory] = useState<string>("");
+  const [isNewSport, setIsNewSport] = useState<boolean>(false);
+  const [isNewLeague, setIsNewLeague] = useState<boolean>(false);
+  const [isNewCategory, setIsNewCategory] = useState<boolean>(false);
 
   const resetAddEntryForm = () => {
     setAddEntryCollection(null);
     setNewOptionName("");
     setNewLineType(LineType.NONE);
+    setNewTeamSport("");
+    setNewTeamLeague("");
+    setNewTeamCategory("");
+    setIsNewSport(false);
+    setIsNewLeague(false);
+    setIsNewCategory(false);
   };
 
   const handleAddNewOption = async () => {
@@ -269,6 +281,11 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       const newOption = {
         name: newOptionName,
         ...(collectionName === "lines" && { lineType: newLineType }),
+        ...(collectionName === FIRESTORE_COLLECTION.Teams && {
+          ...(newTeamSport && { sport: newTeamSport }),
+          ...(newTeamLeague && { league: newTeamLeague }),
+          ...(newTeamCategory && { category: newTeamCategory }),
+        }),
       };
 
       const docRef = await addDoc(collection(db, collectionName), newOption);
@@ -297,6 +314,38 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         ? "bg-purple-300 dark:bg-purple-500/75"
         : "bg-gray-400 dark:bg-purple-700/50"
     }`;
+
+  // Derived sport/league/category option lists for the add-team form
+  const existingSports = [
+    ...new Set(
+      teams.map((t) => t.sport).filter((s): s is string => Boolean(s)),
+    ),
+  ].sort();
+  const existingLeagues = [
+    ...new Set(
+      teams
+        .filter((t) => t.sport === newTeamSport)
+        .map((t) => t.league)
+        .filter((l): l is string => Boolean(l)),
+    ),
+  ].sort();
+  const existingCategories = [
+    ...new Set(
+      teams
+        .filter(
+          (t) =>
+            t.sport === newTeamSport &&
+            (!newTeamLeague || t.league === newTeamLeague),
+        )
+        .map((t) => t.category)
+        .filter((c): c is string => Boolean(c)),
+    ),
+  ].sort();
+
+  const teamFieldSelectClass =
+    "w-full bg-transparent border border-purple-600 rounded text-purple-200 text-sm cursor-pointer focus:outline-none p-2 dark:bg-gray-900";
+  const teamFieldInputClass =
+    "w-full h-9 focus:outline-none text-sm text-left px-2 bg-transparent border border-purple-600 rounded text-purple-200";
 
   const allDrawersClosed =
     !isAddEntryDrawerOpen &&
@@ -337,36 +386,36 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           </button>
         )}
         <Drawer
-            isOpen={isBalancesDrawerOpen}
-            onClose={() => setIsBalancesDrawerOpen(false)}
-            width="w-80"
-          >
-            <div className="flex-col space-y-4">
-              {users.map((u) => {
-                return (
-                  <div key={`${u.id}-profit`}>
-                    <div className="font-extrabold underline">{u.name}</div>
-                    <div>
-                      Total Net Profit:{" "}
-                      {formatProfit(calculateProfit(u.name, "", bets))}
-                      {users
-                        .filter((u2) => u2.id != u.id)
-                        .map((u2) => {
-                          return (
-                            <div key={`${u.id}-${u2.id}-profit`}>
-                              Profit vs {u2.name}:{" "}
-                              {formatProfit(
-                                calculateProfit(u.name, u2.name, bets),
-                              )}
-                            </div>
-                          );
-                        })}
-                    </div>
+          isOpen={isBalancesDrawerOpen}
+          onClose={() => setIsBalancesDrawerOpen(false)}
+          width="w-80"
+        >
+          <div className="flex-col space-y-4">
+            {users.map((u) => {
+              return (
+                <div key={`${u.id}-profit`}>
+                  <div className="font-extrabold underline">{u.name}</div>
+                  <div>
+                    Total Net Profit:{" "}
+                    {formatProfit(calculateProfit(u.name, "", bets))}
+                    {users
+                      .filter((u2) => u2.id != u.id)
+                      .map((u2) => {
+                        return (
+                          <div key={`${u.id}-${u2.id}-profit`}>
+                            Profit vs {u2.name}:{" "}
+                            {formatProfit(
+                              calculateProfit(u.name, u2.name, bets),
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
-                );
-              })}
-            </div>
-          </Drawer>
+                </div>
+              );
+            })}
+          </div>
+        </Drawer>
       </div>
 
       {/* Add Entry Drawer */}
@@ -422,6 +471,146 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                 />
               </div>
 
+              {addEntryCollection === "Teams" && (
+                <div className="space-y-3">
+                  {/* Sport */}
+                  <div className="space-y-1">
+                    <div className="text-xs text-purple-400 font-semibold uppercase tracking-wide">
+                      Sport *
+                    </div>
+                    {!isNewSport ? (
+                      <select
+                        value={newTeamSport}
+                        onChange={(e) => {
+                          if (e.target.value === "__new__") {
+                            setIsNewSport(true);
+                            setNewTeamSport("");
+                            setNewTeamLeague("");
+                            setNewTeamCategory("");
+                          } else {
+                            setNewTeamSport(e.target.value);
+                            setNewTeamLeague("");
+                            setNewTeamCategory("");
+                            setIsNewLeague(false);
+                            setIsNewCategory(false);
+                          }
+                        }}
+                        className={teamFieldSelectClass}
+                      >
+                        <option value="" className="bg-gray-900">
+                          Select sport…
+                        </option>
+                        {existingSports.map((s) => (
+                          <option key={s} value={s} className="bg-gray-900">
+                            {s}
+                          </option>
+                        ))}
+                        <option value="__new__" className="bg-gray-900">
+                          + New sport…
+                        </option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="New sport name…"
+                        value={newTeamSport}
+                        onChange={(e) => setNewTeamSport(e.target.value)}
+                        className={teamFieldInputClass}
+                        autoFocus
+                      />
+                    )}
+                  </div>
+
+                  {/* League — shown once sport is chosen */}
+                  {newTeamSport && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-purple-400 font-semibold uppercase tracking-wide">
+                        League (optional)
+                      </div>
+                      {!isNewLeague ? (
+                        <select
+                          value={newTeamLeague}
+                          onChange={(e) => {
+                            if (e.target.value === "__new__") {
+                              setIsNewLeague(true);
+                              setNewTeamLeague("");
+                            } else {
+                              setNewTeamLeague(e.target.value);
+                              setNewTeamCategory("");
+                              setIsNewCategory(false);
+                            }
+                          }}
+                          className={teamFieldSelectClass}
+                        >
+                          <option value="" className="bg-gray-900">
+                            None
+                          </option>
+                          {existingLeagues.map((l) => (
+                            <option key={l} value={l} className="bg-gray-900">
+                              {l}
+                            </option>
+                          ))}
+                          <option value="__new__" className="bg-gray-900">
+                            + New league…
+                          </option>
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="New league name…"
+                          value={newTeamLeague}
+                          onChange={(e) => setNewTeamLeague(e.target.value)}
+                          className={teamFieldInputClass}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Category — shown once sport is chosen */}
+                  {newTeamSport && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-purple-400 font-semibold uppercase tracking-wide">
+                        Category (optional)
+                      </div>
+                      {!isNewCategory ? (
+                        <select
+                          value={newTeamCategory}
+                          onChange={(e) => {
+                            if (e.target.value === "__new__") {
+                              setIsNewCategory(true);
+                              setNewTeamCategory("");
+                            } else {
+                              setNewTeamCategory(e.target.value);
+                            }
+                          }}
+                          className={teamFieldSelectClass}
+                        >
+                          <option value="" className="bg-gray-900">
+                            None
+                          </option>
+                          {existingCategories.map((c) => (
+                            <option key={c} value={c} className="bg-gray-900">
+                              {c}
+                            </option>
+                          ))}
+                          <option value="__new__" className="bg-gray-900">
+                            + New category…
+                          </option>
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="New category name…"
+                          value={newTeamCategory}
+                          onChange={(e) => setNewTeamCategory(e.target.value)}
+                          className={teamFieldInputClass}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {addEntryCollection === "Lines" && (
                 <div className="w-full flex justify-between">
                   <button
@@ -459,7 +648,10 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                   cursor-pointer focus:outline-none
                   disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={handleAddNewOption}
-                disabled={!newOptionName.trim()}
+                disabled={
+                  !newOptionName.trim() ||
+                  (addEntryCollection === "Teams" && !newTeamSport)
+                }
               >
                 Submit
               </button>
