@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from "react";
 
 type DrawerProps = {
-  trigger: ReactNode;
-  triggerSize: string;
+  trigger?: ReactNode;
+  triggerSize?: string;
   width: string;
   children: ReactNode;
   inline?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
 };
 
 /**
@@ -20,21 +22,29 @@ const Drawer = ({
   width,
   children,
   inline,
+  isOpen: controlledIsOpen,
+  onClose: controlledOnClose,
 }: DrawerProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
 
-  const openDrawer = () => setIsOpen(true);
-  const closeDrawer = () => setIsOpen(false);
+  const isControlled = controlledIsOpen !== undefined;
+  const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
+
+  const openDrawer = () => setInternalIsOpen(true);
+  const closeDrawer = () => {
+    if (isControlled) controlledOnClose?.();
+    else setInternalIsOpen(false);
+  };
 
   return (
     <>
-      {/* Floating Open Button */}
-      {!isOpen && (
+      {/* Floating Open Button — only in uncontrolled mode */}
+      {!isControlled && !isOpen && trigger && (
         <button
           onClick={openDrawer}
           className={`${
             inline ? "" : "fixed bottom-4 right-4 z-50 "
-          }${triggerSize} shadow-black shadow-lg cursor-pointer focus:outline-none`}
+          }${triggerSize ?? ""} shadow-black shadow-lg cursor-pointer focus:outline-none`}
           aria-label="Open Drawer"
         >
           {trigger}

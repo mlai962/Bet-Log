@@ -15,6 +15,7 @@ type BetHistoryProps = {
   handleBetDeletion: (betId: string) => void;
   isShowBetSettlementSpinner: boolean;
   currentBetIdBeingSettled: string;
+  onDeleteDrawerOpenChange?: (isOpen: boolean) => void;
 };
 
 export default function BetHistory({
@@ -23,14 +24,26 @@ export default function BetHistory({
   handleBetDeletion,
   isShowBetSettlementSpinner,
   currentBetIdBeingSettled,
+  onDeleteDrawerOpenChange,
 }: BetHistoryProps) {
   const [deletingBetId, setDeletingBetId] = useState<string | null>(null);
+
+  const openDeleteDrawer = (betId: string) => {
+    setDeletingBetId(betId);
+    onDeleteDrawerOpenChange?.(true);
+  };
+
+  const closeDeleteDrawer = () => {
+    setDeletingBetId(null);
+    onDeleteDrawerOpenChange?.(false);
+  };
 
   return (
     <>
       <BottomDrawer
         isOpen={deletingBetId !== null}
-        onClose={() => setDeletingBetId(null)}
+        onClose={closeDeleteDrawer}
+        direction="top"
       >
         <div className="space-y-4 text-purple-200">
           <div className="text-xl font-bold text-center">Delete Bet?</div>
@@ -38,7 +51,7 @@ export default function BetHistory({
             label="slide to delete"
             onConfirm={() => {
               handleBetDeletion(deletingBetId!);
-              setDeletingBetId(null);
+              closeDeleteDrawer();
             }}
           />
         </div>
@@ -154,7 +167,7 @@ export default function BetHistory({
                   height="24"
                   fill="none"
                   viewBox="0 0 24 24"
-                  onClick={() => setDeletingBetId(bet.id)}
+                  onClick={() => openDeleteDrawer(bet.id)}
                 >
                   <path
                     stroke="currentColor"

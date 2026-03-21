@@ -97,7 +97,9 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   // [0] = teamA (left), [1] = teamB (right)
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(["", ""]);
   const [selectedMapId, setSelectedMapId] = useState<string>("mapMatch");
-  const [selectedLineId, setSelectedLineId] = useState<string>("");
+  const [selectedLineId, setSelectedLineId] = useState<string>(
+    _lines.find((l) => l.name === "Main Line")?.id ?? "",
+  );
 
   const handleUserAChange = (userId: string) => {
     if (userId && userId === selectedUserIds[1]) {
@@ -238,15 +240,30 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     useState<boolean>(false);
   const [isTeamPickerOpen, setIsTeamPickerOpen] = useState<boolean>(false);
   const [isLinePickerOpen, setIsLinePickerOpen] = useState<boolean>(false);
+  const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState<boolean>(false);
+  const [isBalancesDrawerOpen, setIsBalancesDrawerOpen] =
+    useState<boolean>(false);
   const [addEntryCollection, setAddEntryCollection] =
     useState<CollectionName | null>(null);
   const [newOptionName, setNewOptionName] = useState<string>("");
   const [newLineType, setNewLineType] = useState<LineType>(LineType.NONE);
+  const [newTeamSport, setNewTeamSport] = useState<string>("");
+  const [newTeamLeague, setNewTeamLeague] = useState<string>("");
+  const [newTeamCategory, setNewTeamCategory] = useState<string>("");
+  const [isNewSport, setIsNewSport] = useState<boolean>(false);
+  const [isNewLeague, setIsNewLeague] = useState<boolean>(false);
+  const [isNewCategory, setIsNewCategory] = useState<boolean>(false);
 
   const resetAddEntryForm = () => {
     setAddEntryCollection(null);
     setNewOptionName("");
     setNewLineType(LineType.NONE);
+    setNewTeamSport("");
+    setNewTeamLeague("");
+    setNewTeamCategory("");
+    setIsNewSport(false);
+    setIsNewLeague(false);
+    setIsNewCategory(false);
   };
 
   const handleAddNewOption = async () => {
@@ -266,6 +283,11 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       const newOption = {
         name: newOptionName,
         ...(collectionName === "lines" && { lineType: newLineType }),
+        ...(collectionName === FIRESTORE_COLLECTION.Teams && {
+          ...(newTeamSport && { sport: newTeamSport }),
+          ...(newTeamLeague && { league: newTeamLeague }),
+          ...(newTeamCategory && { category: newTeamCategory }),
+        }),
       };
 
       const docRef = await addDoc(collection(db, collectionName), newOption);
@@ -295,18 +317,60 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         : "bg-gray-400 dark:bg-purple-700/50"
     }`;
 
+  // Derived sport/league/category option lists for the add-team form
+  const existingSports = [
+    ...new Set(
+      teams.map((t) => t.sport).filter((s): s is string => Boolean(s)),
+    ),
+  ].sort();
+  const existingLeagues = [
+    ...new Set(
+      teams
+        .filter((t) => t.sport === newTeamSport)
+        .map((t) => t.league)
+        .filter((l): l is string => Boolean(l)),
+    ),
+  ].sort();
+  const existingCategories = [
+    ...new Set(
+      teams
+        .filter(
+          (t) =>
+            t.sport === newTeamSport &&
+            (!newTeamLeague || t.league === newTeamLeague),
+        )
+        .map((t) => t.category)
+        .filter((c): c is string => Boolean(c)),
+    ),
+  ].sort();
+
+  const teamFieldSelectClass =
+    "w-full bg-transparent border border-purple-600 rounded text-purple-200 text-sm cursor-pointer focus:outline-none p-2 dark:bg-gray-900";
+  const teamFieldInputClass =
+    "w-full h-9 focus:outline-none text-sm text-left px-2 bg-transparent border border-purple-600 rounded text-purple-200";
+
+  const allDrawersClosed =
+    !isAddEntryDrawerOpen &&
+    !isTeamPickerOpen &&
+    !isLinePickerOpen &&
+    !isDeleteDrawerOpen &&
+    !isBalancesDrawerOpen;
+
+  const fabClass =
+    "w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center";
+
   return (
     <main className="flex-col p-8 space-y-4">
       {/* Floating bottom-right button group */}
       <div className="fixed bottom-4 right-4 flex items-end gap-2 z-50">
         {/* + FAB */}
-        {!isAddEntryDrawerOpen && !isTeamPickerOpen && !isLinePickerOpen && (
+        {allDrawersClosed && (
           <button
             onClick={() => {
               resetAddEntryForm();
               setIsAddEntryDrawerOpen(true);
             }}
-            className="w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center"
+            className={fabClass}
             aria-label="Add new entry"
           >
             +
@@ -314,50 +378,53 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         )}
 
         {/* Show Balances */}
-        {!isAddEntryDrawerOpen && !isTeamPickerOpen && !isLinePickerOpen && (
-          <Drawer
-            trigger={
-              <div className="w-full h-full rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold hover:bg-gray-800 hover:border-2 flex items-center justify-center">
-                $
-              </div>
-            }
-            triggerSize="w-14 h-14"
-            width="w-80"
-            inline
+        {allDrawersClosed && (
+          <button
+            onClick={() => setIsBalancesDrawerOpen(true)}
+            className={fabClass}
+            aria-label="Show balances"
           >
-            <div className="flex-col space-y-4">
-              {users.map((u) => {
-                return (
-                  <div key={`${u.id}-profit`}>
-                    <div className="font-extrabold underline">{u.name}</div>
-                    <div>
-                      Total Net Profit:{" "}
-                      {formatProfit(calculateProfit(u.name, "", bets))}
-                      {users
-                        .filter((u2) => u2.id != u.id)
-                        .map((u2) => {
-                          return (
-                            <div key={`${u.id}-${u2.id}-profit`}>
-                              Profit vs {u2.name}:{" "}
-                              {formatProfit(
-                                calculateProfit(u.name, u2.name, bets),
-                              )}
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Drawer>
+            $
+          </button>
         )}
+        <Drawer
+          isOpen={isBalancesDrawerOpen}
+          onClose={() => setIsBalancesDrawerOpen(false)}
+          width="w-80"
+        >
+          <div className="flex-col space-y-4">
+            {users.map((u) => {
+              return (
+                <div key={`${u.id}-profit`}>
+                  <div className="font-extrabold underline">{u.name}</div>
+                  <div>
+                    Total Net Profit:{" "}
+                    {formatProfit(calculateProfit(u.name, "", bets))}
+                    {users
+                      .filter((u2) => u2.id != u.id)
+                      .map((u2) => {
+                        return (
+                          <div key={`${u.id}-${u2.id}-profit`}>
+                            Profit vs {u2.name}:{" "}
+                            {formatProfit(
+                              calculateProfit(u.name, u2.name, bets),
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Drawer>
       </div>
 
-      {/* Add Entry Bottom Drawer */}
+      {/* Add Entry Drawer */}
       <BottomDrawer
         isOpen={isAddEntryDrawerOpen}
         onClose={() => setIsAddEntryDrawerOpen(false)}
+        direction="top"
       >
         <div className="space-y-4 text-purple-200">
           <div className="text-xl font-bold text-center">Add New Entry</div>
@@ -406,6 +473,146 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                 />
               </div>
 
+              {addEntryCollection === "Teams" && (
+                <div className="space-y-3">
+                  {/* Sport */}
+                  <div className="space-y-1">
+                    <div className="text-xs text-purple-400 font-semibold uppercase tracking-wide">
+                      Sport *
+                    </div>
+                    {!isNewSport ? (
+                      <select
+                        value={newTeamSport}
+                        onChange={(e) => {
+                          if (e.target.value === "__new__") {
+                            setIsNewSport(true);
+                            setNewTeamSport("");
+                            setNewTeamLeague("");
+                            setNewTeamCategory("");
+                          } else {
+                            setNewTeamSport(e.target.value);
+                            setNewTeamLeague("");
+                            setNewTeamCategory("");
+                            setIsNewLeague(false);
+                            setIsNewCategory(false);
+                          }
+                        }}
+                        className={teamFieldSelectClass}
+                      >
+                        <option value="" className="bg-gray-900">
+                          Select sport…
+                        </option>
+                        {existingSports.map((s) => (
+                          <option key={s} value={s} className="bg-gray-900">
+                            {s}
+                          </option>
+                        ))}
+                        <option value="__new__" className="bg-gray-900">
+                          + New sport…
+                        </option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="New sport name…"
+                        value={newTeamSport}
+                        onChange={(e) => setNewTeamSport(e.target.value)}
+                        className={teamFieldInputClass}
+                        autoFocus
+                      />
+                    )}
+                  </div>
+
+                  {/* League — shown once sport is chosen */}
+                  {newTeamSport && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-purple-400 font-semibold uppercase tracking-wide">
+                        League (optional)
+                      </div>
+                      {!isNewLeague ? (
+                        <select
+                          value={newTeamLeague}
+                          onChange={(e) => {
+                            if (e.target.value === "__new__") {
+                              setIsNewLeague(true);
+                              setNewTeamLeague("");
+                            } else {
+                              setNewTeamLeague(e.target.value);
+                              setNewTeamCategory("");
+                              setIsNewCategory(false);
+                            }
+                          }}
+                          className={teamFieldSelectClass}
+                        >
+                          <option value="" className="bg-gray-900">
+                            None
+                          </option>
+                          {existingLeagues.map((l) => (
+                            <option key={l} value={l} className="bg-gray-900">
+                              {l}
+                            </option>
+                          ))}
+                          <option value="__new__" className="bg-gray-900">
+                            + New league…
+                          </option>
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="New league name…"
+                          value={newTeamLeague}
+                          onChange={(e) => setNewTeamLeague(e.target.value)}
+                          className={teamFieldInputClass}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Category — shown once sport is chosen */}
+                  {newTeamSport && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-purple-400 font-semibold uppercase tracking-wide">
+                        Category (optional)
+                      </div>
+                      {!isNewCategory ? (
+                        <select
+                          value={newTeamCategory}
+                          onChange={(e) => {
+                            if (e.target.value === "__new__") {
+                              setIsNewCategory(true);
+                              setNewTeamCategory("");
+                            } else {
+                              setNewTeamCategory(e.target.value);
+                            }
+                          }}
+                          className={teamFieldSelectClass}
+                        >
+                          <option value="" className="bg-gray-900">
+                            None
+                          </option>
+                          {existingCategories.map((c) => (
+                            <option key={c} value={c} className="bg-gray-900">
+                              {c}
+                            </option>
+                          ))}
+                          <option value="__new__" className="bg-gray-900">
+                            + New category…
+                          </option>
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="New category name…"
+                          value={newTeamCategory}
+                          onChange={(e) => setNewTeamCategory(e.target.value)}
+                          className={teamFieldInputClass}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {addEntryCollection === "Lines" && (
                 <div className="w-full flex justify-between">
                   <button
@@ -443,7 +650,10 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                   cursor-pointer focus:outline-none
                   disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={handleAddNewOption}
-                disabled={!newOptionName.trim()}
+                disabled={
+                  !newOptionName.trim() ||
+                  (addEntryCollection === "Teams" && !newTeamSport)
+                }
               >
                 Submit
               </button>
@@ -560,6 +770,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           handleBetDeletion={handleBetDeletion}
           isShowBetSettlementSpinner={isShowBetSettlementSpinner}
           currentBetIdBeingSettled={currentBetIdBeingSettled}
+          onDeleteDrawerOpenChange={setIsDeleteDrawerOpen}
         />
       </div>
     </main>
