@@ -97,7 +97,9 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   // [0] = teamA (left), [1] = teamB (right)
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(["", ""]);
   const [selectedMapId, setSelectedMapId] = useState<string>("mapMatch");
-  const [selectedLineId, setSelectedLineId] = useState<string>("");
+  const [selectedLineId, setSelectedLineId] = useState<string>(
+    _lines.find((l) => l.name === "Main Line")?.id ?? "",
+  );
 
   const handleUserAChange = (userId: string) => {
     if (userId && userId === selectedUserIds[1]) {
