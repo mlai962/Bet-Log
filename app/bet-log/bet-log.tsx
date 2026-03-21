@@ -369,10 +369,11 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           </Drawer>
       </div>
 
-      {/* Add Entry Bottom Drawer */}
+      {/* Add Entry Drawer */}
       <BottomDrawer
         isOpen={isAddEntryDrawerOpen}
         onClose={() => setIsAddEntryDrawerOpen(false)}
+        direction="top"
       >
         <div className="space-y-4 text-purple-200">
           <div className="text-xl font-bold text-center">Add New Entry</div>
