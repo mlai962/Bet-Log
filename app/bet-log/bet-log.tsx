@@ -238,6 +238,9 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     useState<boolean>(false);
   const [isTeamPickerOpen, setIsTeamPickerOpen] = useState<boolean>(false);
   const [isLinePickerOpen, setIsLinePickerOpen] = useState<boolean>(false);
+  const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState<boolean>(false);
+  const [isBalancesDrawerOpen, setIsBalancesDrawerOpen] =
+    useState<boolean>(false);
   const [addEntryCollection, setAddEntryCollection] =
     useState<CollectionName | null>(null);
   const [newOptionName, setNewOptionName] = useState<string>("");
@@ -295,18 +298,28 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         : "bg-gray-400 dark:bg-purple-700/50"
     }`;
 
+  const allDrawersClosed =
+    !isAddEntryDrawerOpen &&
+    !isTeamPickerOpen &&
+    !isLinePickerOpen &&
+    !isDeleteDrawerOpen &&
+    !isBalancesDrawerOpen;
+
+  const fabClass =
+    "w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center";
+
   return (
     <main className="flex-col p-8 space-y-4">
       {/* Floating bottom-right button group */}
       <div className="fixed bottom-4 right-4 flex items-end gap-2 z-50">
         {/* + FAB */}
-        {!isAddEntryDrawerOpen && !isTeamPickerOpen && !isLinePickerOpen && (
+        {allDrawersClosed && (
           <button
             onClick={() => {
               resetAddEntryForm();
               setIsAddEntryDrawerOpen(true);
             }}
-            className="w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center"
+            className={fabClass}
             aria-label="Add new entry"
           >
             +
@@ -314,16 +327,19 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         )}
 
         {/* Show Balances */}
-        {!isAddEntryDrawerOpen && !isTeamPickerOpen && !isLinePickerOpen && (
-          <Drawer
-            trigger={
-              <div className="w-full h-full rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold hover:bg-gray-800 hover:border-2 flex items-center justify-center">
-                $
-              </div>
-            }
-            triggerSize="w-14 h-14"
+        {allDrawersClosed && (
+          <button
+            onClick={() => setIsBalancesDrawerOpen(true)}
+            className={fabClass}
+            aria-label="Show balances"
+          >
+            $
+          </button>
+        )}
+        <Drawer
+            isOpen={isBalancesDrawerOpen}
+            onClose={() => setIsBalancesDrawerOpen(false)}
             width="w-80"
-            inline
           >
             <div className="flex-col space-y-4">
               {users.map((u) => {
@@ -351,7 +367,6 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
               })}
             </div>
           </Drawer>
-        )}
       </div>
 
       {/* Add Entry Bottom Drawer */}
@@ -560,6 +575,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           handleBetDeletion={handleBetDeletion}
           isShowBetSettlementSpinner={isShowBetSettlementSpinner}
           currentBetIdBeingSettled={currentBetIdBeingSettled}
+          onDeleteDrawerOpenChange={setIsDeleteDrawerOpen}
         />
       </div>
     </main>

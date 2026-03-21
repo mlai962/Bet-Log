@@ -262,7 +262,7 @@ export default function BetSummary({
       </div>
 
       {/* Team picker drawer */}
-      <BottomDrawer isOpen={teamPickerSlot !== null} onClose={closeTeamPicker}>
+      <BottomDrawer isOpen={teamPickerSlot !== null} onClose={closeTeamPicker} direction="top">
         <div className="space-y-3 text-purple-200">
           <div className="text-xl font-bold text-center">
             Select Team {teamPickerSlot === "A" ? "1" : "2"}
@@ -298,7 +298,7 @@ export default function BetSummary({
       </BottomDrawer>
 
       {/* Line picker drawer */}
-      <BottomDrawer isOpen={linePickerOpen} onClose={closeLinePicker}>
+      <BottomDrawer isOpen={linePickerOpen} onClose={closeLinePicker} direction="top">
         <div className="space-y-3 text-purple-200">
           <div className="text-xl font-bold text-center">Select Line</div>
 
