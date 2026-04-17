@@ -34,6 +34,8 @@ type BetSummaryProps = {
   odds: number | null;
   betAmount: number | null;
   date: string;
+  initialOverUnder?: OverUnder;
+  initialHandicap?: Handicap;
 };
 
 export default function BetSummary({
@@ -60,6 +62,8 @@ export default function BetSummary({
   odds,
   betAmount,
   date,
+  initialOverUnder,
+  initialHandicap,
 }: BetSummaryProps) {
   const [teamPickerSlot, setTeamPickerSlot] = useState<"A" | "B" | null>(null);
   const [pickerScreen, setPickerScreen] = useState<
@@ -74,14 +78,12 @@ export default function BetSummary({
   const [linePickerOpen, setLinePickerOpen] = useState(false);
   const [lineSearch, setLineSearch] = useState("");
 
-  const [overUnder, setOverUnder] = useState<OverUnder>({
-    over: true,
-    value: 0.5,
-  });
-  const [handicap, setHandicap] = useState<Handicap>({
-    plus: true,
-    value: 0.5,
-  });
+  const [overUnder, setOverUnder] = useState<OverUnder>(
+    () => initialOverUnder ?? { over: true, value: 0.5 },
+  );
+  const [handicap, setHandicap] = useState<Handicap>(
+    () => initialHandicap ?? { plus: true, value: 0.5 },
+  );
 
   const TEAM_MAX_FONT_SIZE = 64;
   const [teamAFitSize, setTeamAFitSize] = useState<number | null>(null);
@@ -341,6 +343,7 @@ export default function BetSummary({
             <div className="flex justify-center pt-1">
               <BinaryOptionAndNumberInput
                 type={BinaryOptionType.OVER_UNDER}
+                initialValue={initialOverUnder}
                 onChange={(val) => {
                   if (val instanceof OverUnder) {
                     setOverUnder(val);
@@ -355,6 +358,7 @@ export default function BetSummary({
             <div className="flex justify-center pt-1">
               <BinaryOptionAndNumberInput
                 type={BinaryOptionType.HANDICAP}
+                initialValue={initialHandicap}
                 onChange={(val) => {
                   if (val instanceof Handicap) {
                     setHandicap(val);

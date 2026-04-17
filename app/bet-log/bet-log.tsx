@@ -1,14 +1,9 @@
 import { useEffect, useState } from "react";
 import { LineType, type Line } from "../model/line";
-import { Handicap, OverUnder } from "../model/binary-option-and-number";
 import type { Team } from "../model/team";
 import type { User } from "../model/user";
-import NumberInput from "../inputs/bet-amount-input";
-import BetSummary from "./bet-summary";
 import {
   Bet,
-  EXTRA_BINARY_LINE_OPTION,
-  EXTRA_BINARY_LINE_VALUE,
   getBetOutcome,
   type BetDto,
 } from "../model/bet";
@@ -19,17 +14,18 @@ import {
   CollectionReference,
   deleteDoc,
   doc,
-  DocumentReference,
   getDoc,
   onSnapshot,
-  Timestamp,
   updateDoc,
-  type DocumentData,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import Drawer from "../common-components/drawer";
 import BottomDrawer from "../common-components/bottom-drawer";
 import Spinner from "../common-components/spinner";
+import { useBetFormState } from "./use-bet-form-state";
+import BetFormFields from "./bet-form-fields";
+import BetEditDrawer from "./bet-edit-drawer";
+import { ToastProvider } from "../common-components/toast";
 
 type BetLogProps = {
   _users: User[];
@@ -99,113 +95,27 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     return () => unsubscribe();
   }, []);
 
-  // [0] = userA (left), [1] = userB (right)
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>(["", ""]);
-  // [0] = teamA (left), [1] = teamB (right)
-  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(["", ""]);
-  const [selectedMapId, setSelectedMapId] = useState<string>("mapMatch");
-  const [selectedLineId, setSelectedLineId] = useState<string>(
-    _lines.find((l) => l.name === "Main Line")?.id ?? "",
-  );
-
-  const handleUserAChange = (userId: string) => {
-    if (userId && userId === selectedUserIds[1]) {
-      setSelectedUserIds([userId, selectedUserIds[0]]);
-    } else {
-      setSelectedUserIds([userId, selectedUserIds[1]]);
-    }
-  };
-
-  const handleUserBChange = (userId: string) => {
-    if (userId && userId === selectedUserIds[0]) {
-      setSelectedUserIds([selectedUserIds[1], userId]);
-    } else {
-      setSelectedUserIds([selectedUserIds[0], userId]);
-    }
-  };
-
-  const handleTeamAChange = (teamId: string) => {
-    if (teamId && teamId === selectedTeamIds[1]) {
-      setSelectedTeamIds([teamId, selectedTeamIds[0]]);
-    } else {
-      setSelectedTeamIds([teamId, selectedTeamIds[1]]);
-    }
-  };
-
-  const handleTeamBChange = (teamId: string) => {
-    if (teamId && teamId === selectedTeamIds[0]) {
-      setSelectedTeamIds([selectedTeamIds[1], teamId]);
-    } else {
-      setSelectedTeamIds([selectedTeamIds[0], teamId]);
-    }
-  };
-
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-
-  const [overUnder, setOverUnder] = useState<OverUnder>({
-    over: true,
-    value: 0.5,
+  const form = useBetFormState({
+    maps,
+    defaultLineId: _lines.find((l) => l.name === "Main Line")?.id ?? "",
   });
-
-  const [handicap, setHandicap] = useState<Handicap>({
-    plus: true,
-    value: 0.5,
-  });
-
-  const [odds, setOdds] = useState<number>(0);
-  const [betAmount, setBetAmount] = useState<number>(0);
 
   const [isShowBetSubmitSpinner, setIsShowBetSubmitSpinner] =
     useState<boolean>(false);
   const handleBetSubmit = async () => {
-    if (!selectedUserIds[0] || !selectedUserIds[1]) return;
-    if (!selectedTeamIds[0] || !selectedTeamIds[1]) return;
-    if (selectedMapId.length === 0) return;
-    if (selectedLineId.length === 0) return;
-    if (odds <= 0) return;
-    if (betAmount <= 0) return;
+    const data = form.buildWriteData(lines);
+    if (!data) return;
 
     setIsShowBetSubmitSpinner(true);
+    await addDoc(collection(db, "bets"), { ...data, winner: "" });
+  };
 
-    await addDoc(collection(db, "bets"), {
-      userA: doc(db, "users", selectedUserIds[0]) as DocumentReference<
-        User,
-        DocumentData
-      >,
-      userB: doc(db, "users", selectedUserIds[1]) as DocumentReference<
-        User,
-        DocumentData
-      >,
-      teamA: doc(db, " teams", selectedTeamIds[0]) as DocumentReference<
-        Team,
-        DocumentData
-      >,
-      teamB: doc(db, " teams", selectedTeamIds[1]) as DocumentReference<
-        Team,
-        DocumentData
-      >,
-      line: doc(db, "lines", selectedLineId) as DocumentReference<
-        Line,
-        DocumentData
-      >,
-      map: maps.find((m) => m.id === selectedMapId)?.name!,
-      extras: {
-        [EXTRA_BINARY_LINE_OPTION]:
-          lines.find((l) => l.id === selectedLineId)?.lineType ===
-          LineType.OVER_UNDER
-            ? overUnder.over
-            : handicap.plus,
-        [EXTRA_BINARY_LINE_VALUE]:
-          lines.find((l) => l.id === selectedLineId)?.lineType ===
-          LineType.OVER_UNDER
-            ? overUnder.value
-            : handicap.value,
-      },
-      betAmount: betAmount,
-      date: Timestamp.fromDate(new Date(date)),
-      odds: odds,
-      winner: "",
-    });
+  const [editingBetId, setEditingBetId] = useState<string | null>(null);
+  const editingBet = editingBetId
+    ? bets.find((b) => b.id === editingBetId) ?? null
+    : null;
+  const handleBetEditSave = async (betId: string, data: Partial<BetDto>) => {
+    await updateDoc(doc(db, "bets", betId), data);
   };
 
   const [isShowBetSettlementSpinner, setIsShowBetSettlementSpinner] =
@@ -363,12 +273,14 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     !isLinePickerOpen &&
     !isDeleteDrawerOpen &&
     !isSettleDrawerOpen &&
-    !isBalancesDrawerOpen;
+    !isBalancesDrawerOpen &&
+    editingBetId === null;
 
   const fabClass =
     "w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center";
 
   return (
+    <ToastProvider>
     <main className="flex-col p-3 space-y-4">
       {/* Floating bottom-right button group */}
       <div className="fixed bottom-4 right-4 flex items-end gap-2 z-50">
@@ -676,95 +588,45 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       </div>
 
       <div className="w-full max-w-lg mx-auto space-y-2">
-        <BetSummary
+        <BetFormFields
+          form={form}
           users={users}
           teams={teams}
-          userA={
-            selectedUserIds[0]
-              ? users.find((u) => u.id === selectedUserIds[0]) ?? null
-              : null
-          }
-          userB={
-            selectedUserIds[1]
-              ? users.find((u) => u.id === selectedUserIds[1]) ?? null
-              : null
-          }
-          onUserAChange={handleUserAChange}
-          onUserBChange={handleUserBChange}
-          teamA={
-            selectedTeamIds[0]
-              ? teams.find((t) => t.id === selectedTeamIds[0]) ?? null
-              : null
-          }
-          teamB={
-            selectedTeamIds[1]
-              ? teams.find((t) => t.id === selectedTeamIds[1]) ?? null
-              : null
-          }
-          onTeamAChange={handleTeamAChange}
-          onTeamBChange={handleTeamBChange}
-          onTeamPickerOpenChange={setIsTeamPickerOpen}
-          maps={maps}
-          selectedMapId={selectedMapId}
-          onMapChange={setSelectedMapId}
           lines={lines}
-          selectedLineId={selectedLineId}
-          onLineChange={setSelectedLineId}
+          maps={maps}
+          onTeamPickerOpenChange={setIsTeamPickerOpen}
           onLinePickerOpenChange={setIsLinePickerOpen}
-          onOverUnderChange={setOverUnder}
-          onHandicapChange={setHandicap}
-          odds={odds}
-          betAmount={betAmount}
-          date={date}
         />
 
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <NumberInput
-              onChange={(odds) => setOdds(odds)}
-              placeholder="odds..."
-              className=""
-              svgPath="M8.891 15.107 15.11 8.89m-5.183-.52h.01m3.089 7.254h.01M14.08 3.902a2.849 2.849 0 0 0 2.176.902 2.845 2.845 0 0 1 2.94 2.94 2.849 2.849 0 0 0 .901 2.176 2.847 2.847 0 0 1 0 4.16 2.848 2.848 0 0 0-.901 2.175 2.843 2.843 0 0 1-2.94 2.94 2.848 2.848 0 0 0-2.176.902 2.847 2.847 0 0 1-4.16 0 2.85 2.85 0 0 0-2.176-.902 2.845 2.845 0 0 1-2.94-2.94 2.848 2.848 0 0 0-.901-2.176 2.848 2.848 0 0 1 0-4.16 2.849 2.849 0 0 0 .901-2.176 2.845 2.845 0 0 1 2.941-2.94 2.849 2.849 0 0 0 2.176-.901 2.847 2.847 0 0 1 4.159 0Z"
-            />
-
-            <NumberInput
-              onChange={(amount) => setBetAmount(amount)}
-              placeholder="bet amount..."
-              className=""
-              svgPath="M8 17.345a4.76 4.76 0 0 0 2.558 1.618c2.274.589 4.512-.446 4.999-2.31.487-1.866-1.273-3.9-3.546-4.49-2.273-.59-4.034-2.623-3.547-4.488.486-1.865 2.724-2.899 4.998-2.31.982.236 1.87.793 2.538 1.592m-3.879 12.171V21m0-18v2.2"
+        <div className="grid grid-cols-2 gap-2">
+          <div
+            className="h-[82px] p-2 rounded-lg border-1 text-purple-200 overflow-hidden
+            bg-gray-400 dark:bg-purple-950/10
+            border-purple-500 dark:border-purple-700"
+          >
+            <input
+              type="date"
+              value={form.date}
+              className="w-full min-w-0 h-full focus:outline-none"
+              onChange={(e) => form.setDate(e.target.value)}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div
-              className="h-[82px] p-2 rounded-lg border-1 text-purple-200 overflow-hidden
-              bg-gray-400 dark:bg-purple-950/10
-              border-purple-500 dark:border-purple-700"
-            >
-              <input
-                type="date"
-                value={date}
-                className="w-full min-w-0 h-full focus:outline-none"
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleBetSubmit()}
-              className="h-[82px] rounded-lg border-1 text-purple-200 relative
-              bg-gray-400 dark:bg-purple-950/10
-              border-purple-500 dark:border-purple-700
-              hover:bg-purple-200 dark:hover:bg-purple-600
-              active:bg-purple-300 dark:active:bg-purple-500
-              hover:cursor-pointer hover:disabled:cursor-not-allowed"
-            >
-              <span className={`${isShowBetSubmitSpinner ? "opacity-20" : ""}`}>
-                submit gamba
-              </span>
-              <Spinner isShowSpinner={isShowBetSubmitSpinner} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => handleBetSubmit()}
+            className="h-[82px] rounded-lg border-1 text-purple-200 relative
+            bg-gray-400 dark:bg-purple-950/10
+            border-purple-500 dark:border-purple-700
+            hover:bg-purple-200 dark:hover:bg-purple-600
+            active:bg-purple-300 dark:active:bg-purple-500
+            hover:cursor-pointer hover:disabled:cursor-not-allowed"
+          >
+            <span className={`${isShowBetSubmitSpinner ? "opacity-20" : ""}`}>
+              submit gamba
+            </span>
+            <Spinner isShowSpinner={isShowBetSubmitSpinner} />
+          </button>
         </div>
       </div>
 
@@ -781,9 +643,21 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           currentBetIdBeingSettled={currentBetIdBeingSettled}
           onDeleteDrawerOpenChange={setIsDeleteDrawerOpen}
           onSettleDrawerOpenChange={setIsSettleDrawerOpen}
+          onEditRequest={(betId) => setEditingBetId(betId)}
         />
       </div>
+
+      <BetEditDrawer
+        bet={editingBet}
+        users={users}
+        teams={teams}
+        lines={lines}
+        maps={maps}
+        onClose={() => setEditingBetId(null)}
+        onSave={handleBetEditSave}
+      />
     </main>
+    </ToastProvider>
   );
 }
 
