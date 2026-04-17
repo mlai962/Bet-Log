@@ -67,7 +67,7 @@ export default function BetHistory({
             return (
               <div
                 key={bet.id}
-                className="rounded-lg py-2 px-4 border-1 relative
+                className="rounded-lg p-2 border-1 relative
               text-purple-200
               bg-gray-400 dark:bg-purple-950/10
               border-purple-500 dark:border-purple-700"
@@ -80,13 +80,36 @@ export default function BetHistory({
                       : ""
                   }`}
                 >
-                  <div className="flex gap-2">
-                    <div>
-                      {bet.date
-                        .toDate()
-                        .toLocaleDateString("en-US", { weekday: "long" })}
+                  <div className="flex justify-between items-center w-full">
+                    <div className="flex gap-2 text-left">
+                      <div>
+                        {bet.date
+                          .toDate()
+                          .toLocaleDateString("en-US", { weekday: "long" })}
+                      </div>
+                      <div>{bet.date.toDate().toLocaleDateString()}</div>
                     </div>
-                    <div>{bet.date.toDate().toLocaleDateString()}</div>
+                    <div>
+                      <svg
+                        className="w-6 h-6 text-gray-800 dark:text-white 
+                        hover:text-red-500/75 cursor-pointer"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        onClick={() => openDeleteDrawer(bet.id)}
+                      >
+                        <path
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"
+                        />
+                      </svg>
+                    </div>
                   </div>
 
                   <div className="w-full flex">
@@ -157,26 +180,6 @@ export default function BetHistory({
                     </div>
                   </div>
                 </div>
-
-                <svg
-                  className="w-6 h-6 text-gray-800 dark:text-white 
-                hover:text-red-500/75 cursor-pointer absolute top-1 right-1"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  onClick={() => openDeleteDrawer(bet.id)}
-                >
-                  <path
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"
-                  />
-                </svg>
 
                 <Spinner
                   isShowSpinner={
