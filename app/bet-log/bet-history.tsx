@@ -81,7 +81,7 @@ export default function BetHistory({
                   }`}
                 >
                   <div className="flex justify-between items-center w-full">
-                    <div className="flex gap-2 text-left">
+                    <div className="flex gap-2 text-left text-sm">
                       <div>
                         {bet.date
                           .toDate()
@@ -91,7 +91,7 @@ export default function BetHistory({
                     </div>
                     <div>
                       <svg
-                        className="w-6 h-6 text-gray-800 dark:text-white 
+                        className="w-4 h-4 text-gray-800 dark:text-white 
                         hover:text-red-500/75 cursor-pointer"
                         aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg"
@@ -112,8 +112,49 @@ export default function BetHistory({
                     </div>
                   </div>
 
-                  <div className="w-full flex">
-                    <div className="w-[45%] flex justify-end items-center gap-2">
+                  <div className="flex flex-wrap w-full text-sm">
+                    {bet.map}{" "}
+                    {bet.line.lineType === LineType.HANDICAP
+                      ? (binaryLineOption ? "+" : "-") + binaryLineValue + " "
+                      : ""}
+                    {bet.line.name}{" "}
+                    {bet.line.lineType === LineType.OVER_UNDER
+                      ? (binaryLineOption ? "o" : "u") + binaryLineValue
+                      : ""}
+                  </div>
+
+                  <div className="w-full flex text-lg">
+                    <div
+                      className={`flex-wrap w-1/2 text-left
+                      ${
+                        bet.winner === "userA"
+                          ? "text-purple-600 font-extrabold"
+                          : ""
+                      } ${bet.winner === "userB" ? "text-purple-200/40" : ""}`}
+                    >
+                      {bet.teamA.name} @{bet.odds.toFixed(2)} ${bet.betAmount}
+                    </div>
+                    <div
+                      className={`flex-wrap w-1/2 text-right
+                      ${
+                        bet.winner === "userB"
+                          ? "text-purple-600 font-extrabold"
+                          : ""
+                      } ${bet.winner === "userA" ? "text-purple-200/40" : ""}`}
+                    >
+                      {bet.teamB.name}
+                    </div>
+                  </div>
+
+                  <div className="w-full flex text-sm">
+                    <div
+                      className={`w-1/2 flex items-center gap-2
+                      ${
+                        bet.winner === "userA"
+                          ? "text-purple-600 font-extrabold"
+                          : ""
+                      } ${bet.winner === "userB" ? "text-purple-200/40" : ""}`}
+                    >
                       {bet.userA.name}
                       <input
                         id={"checkbox-userA-" + bet.id}
@@ -134,8 +175,14 @@ export default function BetHistory({
                         focus:ring-0 hover:cursor-pointer"
                       />
                     </div>
-                    <div className="w-[10%] text-center">v</div>
-                    <div className="w-[45%] flex justify-start items-center gap-2">
+                    <div
+                      className={`w-1/2 flex justify-end items-center gap-2
+                      ${
+                        bet.winner === "userB"
+                          ? "text-purple-600 font-extrabold"
+                          : ""
+                      } ${bet.winner === "userA" ? "text-purple-200/40" : ""}`}
+                    >
                       <input
                         id={"checkbox-userB-" + bet.id}
                         type="checkbox"
@@ -155,28 +202,6 @@ export default function BetHistory({
                         focus:ring-0 hover:cursor-pointer"
                       />
                       {bet.userB.name}
-                    </div>
-                  </div>
-
-                  <div className="w-full flex">
-                    <div className="w-[45%] text-right">{bet.teamA.name}</div>
-                    <div className="w-[10%] text-center">v</div>
-                    <div className="w-[45%] text-left">{bet.teamB.name}</div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-x-2 justify-center text-center">
-                    <div>
-                      {bet.map}{" "}
-                      {bet.line.lineType === LineType.HANDICAP
-                        ? (binaryLineOption ? "+" : "-") + binaryLineValue + " "
-                        : ""}
-                      {bet.line.name}{" "}
-                      {bet.line.lineType === LineType.OVER_UNDER
-                        ? (binaryLineOption ? "o" : "u") + binaryLineValue
-                        : ""}
-                    </div>
-                    <div>
-                      @{bet.odds.toFixed(2)} ${bet.betAmount}
                     </div>
                   </div>
                 </div>
