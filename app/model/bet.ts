@@ -84,3 +84,29 @@ export class Bet {
     this.winner = dto.winner;
   }
 }
+
+// Odds like X.33 / X.66 represent thirds — expand to exact fractions
+export const getBetMultiplier = (odds: number): number => {
+  const decimalPart = Math.round((odds % 1) * 100) / 100;
+  const integerPart = Math.floor(odds);
+
+  if (Math.abs(decimalPart - 0.33) < 0.01) {
+    return (integerPart * 3 + 1) / 3;
+  }
+  if (Math.abs(decimalPart - 0.66) < 0.01) {
+    return (integerPart * 3 + 2) / 3;
+  }
+  return odds;
+};
+
+export type BetOutcome = { userA: number; userB: number };
+
+export const getBetOutcome = (bet: Bet): BetOutcome | null => {
+  if (bet.winner !== "userA" && bet.winner !== "userB") return null;
+
+  if (bet.winner === "userA") {
+    const profit = bet.betAmount * (getBetMultiplier(bet.odds) - 1);
+    return { userA: profit, userB: -profit };
+  }
+  return { userA: -bet.betAmount, userB: bet.betAmount };
+};

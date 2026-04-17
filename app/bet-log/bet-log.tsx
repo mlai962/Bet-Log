@@ -9,6 +9,7 @@ import {
   Bet,
   EXTRA_BINARY_LINE_OPTION,
   EXTRA_BINARY_LINE_VALUE,
+  getBetOutcome,
   type BetDto,
 } from "../model/bet";
 import BetHistory from "./bet-history";
@@ -783,46 +784,20 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
  */
 const calculateProfit = (userA: string, userB: string, bets: Bet[]) => {
   return bets.reduce((total, bet) => {
-    var multiplier: number;
-
-    // Extract decimal part and check if it's .33 or .66
-    const decimalPart = Math.round((bet.odds % 1) * 100) / 100;
-    const integerPart = Math.floor(bet.odds);
-
-    if (Math.abs(decimalPart - 0.33) < 0.01) {
-      // For X.33, the fraction is (X*3 + 1)/3
-      multiplier = (integerPart * 3 + 1) / 3;
-    } else if (Math.abs(decimalPart - 0.66) < 0.01) {
-      // For X.66, the fraction is (X*3 + 2)/3
-      multiplier = (integerPart * 3 + 2) / 3;
-    } else {
-      multiplier = bet.odds;
-    }
+    const outcome = getBetOutcome(bet);
+    if (!outcome) return total;
 
     if (
       bet.userA.name === userA &&
-      (bet.userB.name === userB || userB === "") &&
-      bet.winner === "userA"
+      (bet.userB.name === userB || userB === "")
     ) {
-      return total + bet.betAmount * (multiplier - 1);
-    } else if (
-      bet.userA.name === userA &&
-      (bet.userB.name === userB || userB === "") &&
-      bet.winner === "userB"
-    ) {
-      return total - bet.betAmount;
-    } else if (
+      return total + outcome.userA;
+    }
+    if (
       bet.userB.name === userA &&
-      (bet.userA.name === userB || userB === "") &&
-      bet.winner === "userA"
+      (bet.userA.name === userB || userB === "")
     ) {
-      return total - bet.betAmount * (multiplier - 1);
-    } else if (
-      bet.userB.name === userA &&
-      (bet.userA.name === userB || userB === "") &&
-      bet.winner === "userB"
-    ) {
-      return total + bet.betAmount;
+      return total + outcome.userB;
     }
 
     return total;

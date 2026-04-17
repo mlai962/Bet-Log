@@ -3,6 +3,7 @@ import {
   Bet,
   EXTRA_BINARY_LINE_OPTION,
   EXTRA_BINARY_LINE_VALUE,
+  getBetOutcome,
 } from "../model/bet";
 import { LineType } from "../model/line";
 import Spinner from "../common-components/spinner";
@@ -63,6 +64,7 @@ export default function BetHistory({
               bet.extras[EXTRA_BINARY_LINE_OPTION] ?? true;
             const binaryLineValue: number =
               bet.extras[EXTRA_BINARY_LINE_VALUE] ?? 0;
+            const outcome = getBetOutcome(bet);
 
             return (
               <div
@@ -204,6 +206,31 @@ export default function BetHistory({
                       {bet.userB.name}
                     </div>
                   </div>
+
+                  {outcome ? (
+                    <div className="flex w-full justify-between">
+                      {bet.winner === "userA" ? (
+                        <div className="text-purple-600 font-extrabold">
+                          +${outcome.userA}
+                        </div>
+                      ) : (
+                        <div className="text-purple-200/40">
+                          -${Math.abs(outcome.userA)}
+                        </div>
+                      )}
+                      {bet.winner === "userB" ? (
+                        <div className="text-purple-600 font-extrabold">
+                          +${outcome.userB}
+                        </div>
+                      ) : (
+                        <div className="text-purple-200/40">
+                          -${Math.abs(outcome.userB)}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <></>
+                  )}
                 </div>
 
                 <Spinner
