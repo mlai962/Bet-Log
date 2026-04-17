@@ -105,7 +105,8 @@ export const getBetOutcome = (bet: Bet): BetOutcome | null => {
   if (bet.winner !== "userA" && bet.winner !== "userB") return null;
 
   if (bet.winner === "userA") {
-    const profit = bet.betAmount * (getBetMultiplier(bet.odds) - 1);
+    const profit =
+      Math.round(bet.betAmount * (getBetMultiplier(bet.odds) - 1) * 100) / 100;
     return { userA: profit, userB: -profit };
   }
   return { userA: -bet.betAmount, userB: bet.betAmount };
