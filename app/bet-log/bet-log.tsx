@@ -9,6 +9,7 @@ import {
   Bet,
   EXTRA_BINARY_LINE_OPTION,
   EXTRA_BINARY_LINE_VALUE,
+  getBetOutcome,
   type BetDto,
 } from "../model/bet";
 import BetHistory from "./bet-history";
@@ -80,7 +81,13 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         );
 
         setBets(
-          [...bets].sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+          [...bets].sort((a, b) => {
+            const dateDiff = b.date.toMillis() - a.date.toMillis();
+            if (dateDiff !== 0) return dateDiff;
+            const mapDiff = a.map.localeCompare(b.map);
+            if (mapDiff !== 0) return mapDiff;
+            return a.line.name.localeCompare(b.line.name);
+          }),
         );
 
         setIsShowBetSubmitSpinner(false);
@@ -241,6 +248,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const [isTeamPickerOpen, setIsTeamPickerOpen] = useState<boolean>(false);
   const [isLinePickerOpen, setIsLinePickerOpen] = useState<boolean>(false);
   const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState<boolean>(false);
+  const [isSettleDrawerOpen, setIsSettleDrawerOpen] = useState<boolean>(false);
   const [isBalancesDrawerOpen, setIsBalancesDrawerOpen] =
     useState<boolean>(false);
   const [addEntryCollection, setAddEntryCollection] =
@@ -354,13 +362,14 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     !isTeamPickerOpen &&
     !isLinePickerOpen &&
     !isDeleteDrawerOpen &&
+    !isSettleDrawerOpen &&
     !isBalancesDrawerOpen;
 
   const fabClass =
     "w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center";
 
   return (
-    <main className="flex-col p-8 space-y-4">
+    <main className="flex-col p-3 space-y-4">
       {/* Floating bottom-right button group */}
       <div className="fixed bottom-4 right-4 flex items-end gap-2 z-50">
         {/* + FAB */}
@@ -771,6 +780,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           isShowBetSettlementSpinner={isShowBetSettlementSpinner}
           currentBetIdBeingSettled={currentBetIdBeingSettled}
           onDeleteDrawerOpenChange={setIsDeleteDrawerOpen}
+          onSettleDrawerOpenChange={setIsSettleDrawerOpen}
         />
       </div>
     </main>
@@ -783,46 +793,20 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
  */
 const calculateProfit = (userA: string, userB: string, bets: Bet[]) => {
   return bets.reduce((total, bet) => {
-    var multiplier: number;
-
-    // Extract decimal part and check if it's .33 or .66
-    const decimalPart = Math.round((bet.odds % 1) * 100) / 100;
-    const integerPart = Math.floor(bet.odds);
-
-    if (Math.abs(decimalPart - 0.33) < 0.01) {
-      // For X.33, the fraction is (X*3 + 1)/3
-      multiplier = (integerPart * 3 + 1) / 3;
-    } else if (Math.abs(decimalPart - 0.66) < 0.01) {
-      // For X.66, the fraction is (X*3 + 2)/3
-      multiplier = (integerPart * 3 + 2) / 3;
-    } else {
-      multiplier = bet.odds;
-    }
+    const outcome = getBetOutcome(bet);
+    if (!outcome) return total;
 
     if (
       bet.userA.name === userA &&
-      (bet.userB.name === userB || userB === "") &&
-      bet.winner === "userA"
+      (bet.userB.name === userB || userB === "")
     ) {
-      return total + bet.betAmount * (multiplier - 1);
-    } else if (
-      bet.userA.name === userA &&
-      (bet.userB.name === userB || userB === "") &&
-      bet.winner === "userB"
-    ) {
-      return total - bet.betAmount;
-    } else if (
+      return total + outcome.userA;
+    }
+    if (
       bet.userB.name === userA &&
-      (bet.userA.name === userB || userB === "") &&
-      bet.winner === "userA"
+      (bet.userA.name === userB || userB === "")
     ) {
-      return total - bet.betAmount * (multiplier - 1);
-    } else if (
-      bet.userB.name === userA &&
-      (bet.userA.name === userB || userB === "") &&
-      bet.winner === "userB"
-    ) {
-      return total + bet.betAmount;
+      return total + outcome.userB;
     }
 
     return total;
