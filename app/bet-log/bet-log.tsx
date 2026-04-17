@@ -81,7 +81,13 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         );
 
         setBets(
-          [...bets].sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+          [...bets].sort((a, b) => {
+            const dateDiff = b.date.toMillis() - a.date.toMillis();
+            if (dateDiff !== 0) return dateDiff;
+            const mapDiff = a.map.localeCompare(b.map);
+            if (mapDiff !== 0) return mapDiff;
+            return a.line.name.localeCompare(b.line.name);
+          }),
         );
 
         setIsShowBetSubmitSpinner(false);
