@@ -360,7 +360,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     "w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center";
 
   return (
-    <main className="flex-col p-8 space-y-4">
+    <main className="flex-col p-3 space-y-4">
       {/* Floating bottom-right button group */}
       <div className="fixed bottom-4 right-4 flex items-end gap-2 z-50">
         {/* + FAB */}
