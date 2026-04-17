@@ -242,6 +242,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const [isTeamPickerOpen, setIsTeamPickerOpen] = useState<boolean>(false);
   const [isLinePickerOpen, setIsLinePickerOpen] = useState<boolean>(false);
   const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState<boolean>(false);
+  const [isSettleDrawerOpen, setIsSettleDrawerOpen] = useState<boolean>(false);
   const [isBalancesDrawerOpen, setIsBalancesDrawerOpen] =
     useState<boolean>(false);
   const [addEntryCollection, setAddEntryCollection] =
@@ -355,6 +356,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     !isTeamPickerOpen &&
     !isLinePickerOpen &&
     !isDeleteDrawerOpen &&
+    !isSettleDrawerOpen &&
     !isBalancesDrawerOpen;
 
   const fabClass =
@@ -772,6 +774,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           isShowBetSettlementSpinner={isShowBetSettlementSpinner}
           currentBetIdBeingSettled={currentBetIdBeingSettled}
           onDeleteDrawerOpenChange={setIsDeleteDrawerOpen}
+          onSettleDrawerOpenChange={setIsSettleDrawerOpen}
         />
       </div>
     </main>

@@ -1,8 +1,30 @@
 import { useRef, useState } from "react";
 
+type SlideToConfirmVariant = "red" | "purple";
+
 type SlideToConfirmProps = {
   label?: string;
   onConfirm: () => void;
+  variant?: SlideToConfirmVariant;
+};
+
+// Tailwind needs complete class names at build time, so enumerate variants.
+const VARIANT_CLASSES: Record<
+  SlideToConfirmVariant,
+  { border: string; label: string; fill: string; thumb: string }
+> = {
+  red: {
+    border: "border-red-900",
+    label: "text-red-400",
+    fill: "bg-red-800/50",
+    thumb: "bg-red-700",
+  },
+  purple: {
+    border: "border-purple-800",
+    label: "text-purple-300",
+    fill: "bg-purple-700/50",
+    thumb: "bg-purple-600",
+  },
 };
 
 /**
@@ -12,7 +34,9 @@ type SlideToConfirmProps = {
 export default function SlideToConfirm({
   label = "slide to confirm",
   onConfirm,
+  variant = "red",
 }: SlideToConfirmProps) {
+  const colors = VARIANT_CLASSES[variant];
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -51,12 +75,12 @@ export default function SlideToConfirm({
   return (
     <div
       ref={trackRef}
-      className="relative w-full h-14 rounded-full overflow-hidden select-none
-        bg-gray-800 border border-red-900"
+      className={`relative w-full h-14 rounded-full overflow-hidden select-none
+        bg-gray-800 border ${colors.border}`}
     >
       {/* Label — fades as thumb advances */}
       <div
-        className="absolute inset-0 flex items-center justify-center font-semibold pointer-events-none text-red-400"
+        className={`absolute inset-0 flex items-center justify-center font-semibold pointer-events-none ${colors.label}`}
         style={{ opacity: Math.max(0, 1 - progress * 2) }}
       >
         {label}
@@ -64,7 +88,7 @@ export default function SlideToConfirm({
 
       {/* Fill */}
       <div
-        className="absolute inset-y-0 left-0 bg-red-800/50 rounded-full"
+        className={`absolute inset-y-0 left-0 rounded-full ${colors.fill}`}
         style={{
           width: `${dragX + THUMB_SIZE}px`,
           transition: isDragging ? "none" : "width 0.3s ease",
@@ -73,8 +97,8 @@ export default function SlideToConfirm({
 
       {/* Thumb */}
       <div
-        className="absolute top-0 h-14 w-14 rounded-full flex items-center justify-center
-          bg-red-700 cursor-grab active:cursor-grabbing touch-none"
+        className={`absolute top-0 h-14 w-14 rounded-full flex items-center justify-center
+          cursor-grab active:cursor-grabbing touch-none ${colors.thumb}`}
         style={{
           left: `${dragX}px`,
           transition: isDragging ? "none" : "left 0.3s ease",

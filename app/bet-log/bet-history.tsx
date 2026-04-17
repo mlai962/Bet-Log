@@ -17,6 +17,7 @@ type BetHistoryProps = {
   isShowBetSettlementSpinner: boolean;
   currentBetIdBeingSettled: string;
   onDeleteDrawerOpenChange?: (isOpen: boolean) => void;
+  onSettleDrawerOpenChange?: (isOpen: boolean) => void;
 };
 
 export default function BetHistory({
@@ -26,8 +27,10 @@ export default function BetHistory({
   isShowBetSettlementSpinner,
   currentBetIdBeingSettled,
   onDeleteDrawerOpenChange,
+  onSettleDrawerOpenChange,
 }: BetHistoryProps) {
   const [deletingBetId, setDeletingBetId] = useState<string | null>(null);
+  const [settlingBetId, setSettlingBetId] = useState<string | null>(null);
 
   const openDeleteDrawer = (betId: string) => {
     setDeletingBetId(betId);
@@ -38,6 +41,20 @@ export default function BetHistory({
     setDeletingBetId(null);
     onDeleteDrawerOpenChange?.(false);
   };
+
+  const openSettleDrawer = (betId: string) => {
+    setSettlingBetId(betId);
+    onSettleDrawerOpenChange?.(true);
+  };
+
+  const closeSettleDrawer = () => {
+    setSettlingBetId(null);
+    onSettleDrawerOpenChange?.(false);
+  };
+
+  const settlingBet = settlingBetId
+    ? bets.find((b) => b.id === settlingBetId) ?? null
+    : null;
 
   return (
     <>
@@ -55,6 +72,43 @@ export default function BetHistory({
               closeDeleteDrawer();
             }}
           />
+        </div>
+      </BottomDrawer>
+      <BottomDrawer
+        isOpen={settlingBetId !== null}
+        onClose={closeSettleDrawer}
+        direction="top"
+      >
+        <div className="space-y-4 text-purple-200">
+          <div className="text-xl font-bold text-center">Settle Bet</div>
+          {settlingBet && (
+            <div className="space-y-3">
+              <SlideToConfirm
+                label={`${settlingBet.userA.name} wins`}
+                variant="purple"
+                onConfirm={() => {
+                  handleBetSettlement(settlingBet.id, "userA");
+                  closeSettleDrawer();
+                }}
+              />
+              <SlideToConfirm
+                label={`${settlingBet.userB.name} wins`}
+                variant="purple"
+                onConfirm={() => {
+                  handleBetSettlement(settlingBet.id, "userB");
+                  closeSettleDrawer();
+                }}
+              />
+              <SlideToConfirm
+                label="clear winner"
+                variant="purple"
+                onConfirm={() => {
+                  handleBetSettlement(settlingBet.id, "");
+                  closeSettleDrawer();
+                }}
+              />
+            </div>
+          )}
         </div>
       </BottomDrawer>
       <div className="w-full h-max flex justify-center">
@@ -91,7 +145,34 @@ export default function BetHistory({
                       </div>
                       <div>{bet.date.toDate().toLocaleDateString()}</div>
                     </div>
-                    <div>
+                    <div className="flex gap-2 justify-end">
+                      <svg
+                        className="w-4 h-4 text-gray-800 dark:text-white
+                        hover:text-purple-400/75 cursor-pointer"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        onClick={() => openSettleDrawer(bet.id)}
+                      >
+                        <path
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M21 13v-2a1 1 0 0 0-1-1h-.757l-.707-1.707.535-.536a1 1 0 0 0 0-1.414l-1.414-1.414a1 1 0 0 0-1.414 0l-.536.535L14 4.757V4a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v.757l-1.707.707-.536-.535a1 1 0 0 0-1.414 0L4.929 6.343a1 1 0 0 0 0 1.414l.536.536L4.757 10H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h.757l.707 1.707-.535.536a1 1 0 0 0 0 1.414l1.414 1.414a1 1 0 0 0 1.414 0l.536-.535 1.707.707V20a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.757l1.707-.708.536.536a1 1 0 0 0 1.414 0l1.414-1.414a1 1 0 0 0 0-1.414l-.535-.536.707-1.707H20a1 1 0 0 0 1-1Z"
+                        />
+                        <path
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+                        />
+                      </svg>
+
                       <svg
                         className="w-4 h-4 text-gray-800 dark:text-white 
                         hover:text-red-500/75 cursor-pointer"
@@ -150,7 +231,7 @@ export default function BetHistory({
 
                   <div className="w-full flex text-sm">
                     <div
-                      className={`w-1/2 flex items-center gap-2
+                      className={`w-1/2 text-left
                       ${
                         bet.winner === "userA"
                           ? "text-purple-600 font-extrabold"
@@ -158,51 +239,15 @@ export default function BetHistory({
                       } ${bet.winner === "userB" ? "text-purple-200/40" : ""}`}
                     >
                       {bet.userA.name}
-                      <input
-                        id={"checkbox-userA-" + bet.id}
-                        type="checkbox"
-                        value="userA"
-                        name={"checkbox-userA-" + bet.id}
-                        checked={bet.winner === "userA"}
-                        onChange={(e) => {
-                          handleBetSettlement(
-                            bet.id,
-                            e.target.checked ? "userA" : "",
-                          );
-                        }}
-                        className="w-4 h-4
-                        accent-purple-800 dark:accent-purple-600
-                        bg-gray-100 dark:bg-gray-700
-                        border-gray-300 dark:border-gray-600
-                        focus:ring-0 hover:cursor-pointer"
-                      />
                     </div>
                     <div
-                      className={`w-1/2 flex justify-end items-center gap-2
+                      className={`w-1/2 text-right
                       ${
                         bet.winner === "userB"
                           ? "text-purple-600 font-extrabold"
                           : ""
                       } ${bet.winner === "userA" ? "text-purple-200/40" : ""}`}
                     >
-                      <input
-                        id={"checkbox-userB-" + bet.id}
-                        type="checkbox"
-                        value="userB"
-                        name={"checkbox-userB-" + bet.id}
-                        checked={bet.winner === "userB"}
-                        onChange={(e) => {
-                          handleBetSettlement(
-                            bet.id,
-                            e.target.checked ? "userB" : "",
-                          );
-                        }}
-                        className="w-4 h-4 ms-1
-                        accent-purple-800 dark:accent-purple-600
-                        bg-gray-100 dark:bg-gray-700
-                        border-gray-300 dark:border-gray-600
-                        focus:ring-0 hover:cursor-pointer"
-                      />
                       {bet.userB.name}
                     </div>
                   </div>
