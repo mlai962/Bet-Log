@@ -19,8 +19,8 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import Drawer from "../common-components/drawer";
-import BottomDrawer from "../common-components/bottom-drawer";
+import HorizontalDrawer from "../common-components/horizontal-drawer";
+import VerticalDrawer from "../common-components/vertical-drawer";
 import Spinner from "../common-components/spinner";
 import { useBetFormState } from "./use-bet-form-state";
 import BetFormFields from "./bet-form-fields";
@@ -345,9 +345,10 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             </svg>
           </button>
         )}
-        <Drawer
+        <HorizontalDrawer
           isOpen={isBalancesDrawerOpen}
           onClose={() => setIsBalancesDrawerOpen(false)}
+          direction="right"
           width="w-80"
         >
           <div className="flex-col space-y-4">
@@ -375,11 +376,11 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
               );
             })}
           </div>
-        </Drawer>
+        </HorizontalDrawer>
       </div>
 
       {/* Add Entry Drawer */}
-      <BottomDrawer
+      <VerticalDrawer
         isOpen={isAddEntryDrawerOpen}
         onClose={() => setIsAddEntryDrawerOpen(false)}
         direction="top"
@@ -618,14 +619,14 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             </div>
           )}
         </div>
-      </BottomDrawer>
+      </VerticalDrawer>
 
       <div className="w-full h-max text-4xl font-semibold text-center text-purple-200">
         gamba kappachungus deluxe
       </div>
 
       {/* Create Bet Drawer */}
-      <BottomDrawer
+      <VerticalDrawer
         isOpen={isCreateBetDrawerOpen}
         onClose={() => setIsCreateBetDrawerOpen(false)}
         direction="top"
@@ -678,7 +679,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             </div>
           </div>
         </div>
-      </BottomDrawer>
+      </VerticalDrawer>
 
       <div className="w-full min-h-32 relative">
         <div className={`mt-10 ${bets.length === 0 ? "block" : "hidden"}`}>

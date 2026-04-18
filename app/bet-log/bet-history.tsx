@@ -7,7 +7,7 @@ import {
 } from "../model/bet";
 import { LineType } from "../model/line";
 import Spinner from "../common-components/spinner";
-import BottomDrawer from "../common-components/bottom-drawer";
+import VerticalDrawer from "../common-components/vertical-drawer";
 import SlideToConfirm from "../common-components/slide-to-confirm";
 import { useToast } from "../common-components/toast";
 
@@ -70,7 +70,7 @@ export default function BetHistory({
 
   return (
     <>
-      <BottomDrawer
+      <VerticalDrawer
         isOpen={deletingBetId !== null}
         onClose={closeDeleteDrawer}
         direction="top"
@@ -85,8 +85,8 @@ export default function BetHistory({
             }}
           />
         </div>
-      </BottomDrawer>
-      <BottomDrawer
+      </VerticalDrawer>
+      <VerticalDrawer
         isOpen={settlingBetId !== null}
         onClose={closeSettleDrawer}
         direction="top"
@@ -122,7 +122,7 @@ export default function BetHistory({
             </div>
           )}
         </div>
-      </BottomDrawer>
+      </VerticalDrawer>
       <div className="w-full h-max flex justify-center">
         <div className="w-max space-y-1 flex flex-col">
           {bets.map((bet) => {

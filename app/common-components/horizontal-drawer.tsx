@@ -1,18 +1,20 @@
 import React, { useEffect, type ReactNode } from "react";
 import ReactDOM from "react-dom";
 
-interface BottomDrawerProps {
+interface HorizontalDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
-  direction?: "top" | "bottom";
+  width?: string;
+  direction?: "left" | "right";
 }
 
-const BottomDrawer: React.FC<BottomDrawerProps> = ({
+const HorizontalDrawer: React.FC<HorizontalDrawerProps> = ({
   isOpen,
   onClose,
   children,
-  direction = "bottom",
+  width = "w-80",
+  direction = "right",
 }) => {
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "auto";
@@ -33,10 +35,10 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
         aria-hidden="true"
       />
       <div
-        className={`fixed left-0 right-0 max-w-lg mx-auto bg-white dark:bg-gray-950 border-purple-800 shadow-xl z-50 transition-transform duration-300 ease-in-out ${
-          direction === "top"
-            ? `top-0 border-b-2 border-x-2 rounded-b-2xl ${isOpen ? "translate-y-0" : "-translate-y-full"}`
-            : `bottom-0 border-t-2 border-x-2 rounded-t-2xl ${isOpen ? "translate-y-0" : "translate-y-full"}`
+        className={`fixed top-0 h-full ${width} bg-white dark:bg-gray-950 border-purple-800 shadow-xl z-50 transition-transform duration-300 ease-in-out ${
+          direction === "left"
+            ? `left-0 border-r-2 border-y-2 rounded-r-2xl ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            : `right-0 border-l-2 border-y-2 rounded-l-2xl ${isOpen ? "translate-x-0" : "translate-x-full"}`
         }`}
         role="dialog"
         aria-modal={isOpen}
@@ -72,4 +74,4 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
   );
 };
 
-export default BottomDrawer;
+export default HorizontalDrawer;
