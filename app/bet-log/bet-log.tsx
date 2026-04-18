@@ -19,8 +19,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import HorizontalDrawer from "../common-components/horizontal-drawer";
-import VerticalDrawer from "../common-components/vertical-drawer";
+import Drawer from "../common-components/drawer";
 import Spinner from "../common-components/spinner";
 import { useBetFormState } from "./use-bet-form-state";
 import BetFormFields from "./bet-form-fields";
@@ -345,11 +344,10 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             </svg>
           </button>
         )}
-        <HorizontalDrawer
+        <Drawer
           isOpen={isBalancesDrawerOpen}
           onClose={() => setIsBalancesDrawerOpen(false)}
           direction="right"
-          width="w-80"
         >
           <div className="flex-col space-y-4">
             {users.map((u) => {
@@ -376,11 +374,11 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
               );
             })}
           </div>
-        </HorizontalDrawer>
+        </Drawer>
       </div>
 
       {/* Add Entry Drawer */}
-      <VerticalDrawer
+      <Drawer
         isOpen={isAddEntryDrawerOpen}
         onClose={() => setIsAddEntryDrawerOpen(false)}
         direction="top"
@@ -619,14 +617,14 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             </div>
           )}
         </div>
-      </VerticalDrawer>
+      </Drawer>
 
       <div className="w-full h-max text-4xl font-semibold text-center text-purple-200">
         gamba kappachungus deluxe
       </div>
 
       {/* Create Bet Drawer */}
-      <VerticalDrawer
+      <Drawer
         isOpen={isCreateBetDrawerOpen}
         onClose={() => setIsCreateBetDrawerOpen(false)}
         direction="top"
@@ -679,7 +677,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             </div>
           </div>
         </div>
-      </VerticalDrawer>
+      </Drawer>
 
       <div className="w-full min-h-32 relative">
         <div className={`mt-10 ${bets.length === 0 ? "block" : "hidden"}`}>

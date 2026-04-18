@@ -1,5 +1,5 @@
 import { useState } from "react";
-import VerticalDrawer from "../common-components/vertical-drawer";
+import Drawer from "../common-components/drawer";
 import SlideToConfirm from "../common-components/slide-to-confirm";
 import Spinner from "../common-components/spinner";
 import type { Bet, BetDto } from "../model/bet";
@@ -29,7 +29,7 @@ export default function BetEditDrawer({
   onSave,
 }: BetEditDrawerProps) {
   return (
-    <VerticalDrawer isOpen={bet !== null} onClose={onClose} direction="top">
+    <Drawer isOpen={bet !== null} onClose={onClose} direction="top">
       {bet && (
         <BetEditDrawerBody
           key={bet.id}
@@ -42,7 +42,7 @@ export default function BetEditDrawer({
           onSave={onSave}
         />
       )}
-    </VerticalDrawer>
+    </Drawer>
   );
 }
 

@@ -4,7 +4,7 @@ import { LineType, type Line } from "../model/line";
 import type { Team } from "../model/team";
 import { getCategories, getLeagues, groupTeams } from "../model/team-grouping";
 import type { User } from "../model/user";
-import VerticalDrawer from "../common-components/vertical-drawer";
+import Drawer from "../common-components/drawer";
 import FitText from "../common-components/fit-text";
 import BinaryOptionAndNumberInput, {
   BinaryOptionType,
@@ -78,7 +78,7 @@ export default function BetSummary({
   const [linePickerOpen, setLinePickerOpen] = useState(false);
   const [lineSearch, setLineSearch] = useState("");
 
-  // Focus picker inputs imperatively when the drawer opens — the VerticalDrawer
+  // Focus picker inputs imperatively when the drawer opens — the Drawer
   // is always mounted in the DOM (just translated off-screen), so autoFocus
   // would fire on every mount and pop up the mobile keyboard even while the
   // drawer is hidden.
@@ -402,7 +402,7 @@ export default function BetSummary({
       </div>
 
       {/* Team picker drawer */}
-      <VerticalDrawer
+      <Drawer
         isOpen={teamPickerSlot !== null}
         onClose={closeTeamPicker}
         direction="top"
@@ -527,10 +527,10 @@ export default function BetSummary({
             </>
           )}
         </div>
-      </VerticalDrawer>
+      </Drawer>
 
       {/* Line picker drawer */}
-      <VerticalDrawer
+      <Drawer
         isOpen={linePickerOpen}
         onClose={closeLinePicker}
         direction="top"
@@ -569,7 +569,7 @@ export default function BetSummary({
               ))}
           </div>
         </div>
-      </VerticalDrawer>
+      </Drawer>
     </>
   );
 }
