@@ -1,4 +1,6 @@
 import React, {
+  createContext,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -8,6 +10,10 @@ import React, {
 import ReactDOM from "react-dom";
 
 export type DrawerDirection = "top" | "bottom" | "left" | "right";
+
+/** Tracks how deeply the current Drawer is nested inside other Drawers so
+ * inner drawers can stack above their parents regardless of portal DOM order. */
+const DrawerDepthContext = createContext(0);
 
 interface DrawerProps {
   isOpen: boolean;
@@ -184,25 +190,32 @@ const Drawer: React.FC<DrawerProps> = ({
         : `translate(0, ${dragOffset}px)`
       : resting;
 
+  const parentDepth = useContext(DrawerDepthContext);
+  const depth = parentDepth + 1;
+  const backdropZ = 40 + (depth - 1) * 20;
+  const panelZ = backdropZ + 10;
+
   const panelStyle: CSSProperties = {
     transform: activeTransform,
     transition: isDragging ? "none" : "transform 0.3s ease-in-out",
+    zIndex: panelZ,
   };
 
   return ReactDOM.createPortal(
-    <>
+    <DrawerDepthContext.Provider value={depth}>
       <div
-        className={`fixed inset-0 bg-gray-900/90 backdrop-blur-xs z-40 transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-gray-900/90 backdrop-blur-xs transition-opacity duration-300 ${
           isOpen
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
         }`}
+        style={{ zIndex: backdropZ }}
         onClick={onClose}
         aria-hidden="true"
       />
       <div
         ref={panelRef}
-        className={`fixed ${config.anchor} ${config.crossAxis} ${perpendicularClasses} ${resolvedSize} bg-white dark:bg-gray-950 border-purple-800 shadow-xl z-50 ${config.border} ${config.rounded}`}
+        className={`fixed ${config.anchor} ${config.crossAxis} ${perpendicularClasses} ${resolvedSize} bg-white dark:bg-gray-950 border-purple-800 shadow-xl ${config.border} ${config.rounded}`}
         style={panelStyle}
         role="dialog"
         aria-modal={isOpen}
@@ -247,7 +260,7 @@ const Drawer: React.FC<DrawerProps> = ({
 
         <div className={config.contentPadding}>{children}</div>
       </div>
-    </>,
+    </DrawerDepthContext.Provider>,
     document.body,
   );
 };
