@@ -21,14 +21,12 @@ type BetSummaryProps = {
   teamB: Team | null;
   onTeamAChange: (teamId: string) => void;
   onTeamBChange: (teamId: string) => void;
-  onTeamPickerOpenChange: (isOpen: boolean) => void;
   maps: { id: string; name: string }[];
   selectedMapId: string;
   onMapChange: (mapId: string) => void;
   lines: Line[];
   selectedLineId: string;
   onLineChange: (lineId: string) => void;
-  onLinePickerOpenChange: (isOpen: boolean) => void;
   onOverUnderChange: (val: OverUnder) => void;
   onHandicapChange: (val: Handicap) => void;
   odds: number | null;
@@ -49,14 +47,12 @@ export default function BetSummary({
   teamB,
   onTeamAChange,
   onTeamBChange,
-  onTeamPickerOpenChange,
   maps,
   selectedMapId,
   onMapChange,
   lines,
   selectedLineId,
   onLineChange,
-  onLinePickerOpenChange,
   onOverUnderChange,
   onHandicapChange,
   odds,
@@ -118,7 +114,6 @@ export default function BetSummary({
     setPickerLeague(null);
     setPickerCat(null);
     setTeamSearch("");
-    onTeamPickerOpenChange(true);
   };
 
   const closeTeamPicker = () => {
@@ -128,7 +123,6 @@ export default function BetSummary({
     setPickerLeague(null);
     setPickerCat(null);
     setTeamSearch("");
-    onTeamPickerOpenChange(false);
   };
 
   /** Advance picker after sport is chosen */
@@ -207,13 +201,11 @@ export default function BetSummary({
 
   const openLinePicker = () => {
     setLinePickerOpen(true);
-    onLinePickerOpenChange(true);
   };
 
   const closeLinePicker = () => {
     setLinePickerOpen(false);
     setLineSearch("");
-    onLinePickerOpenChange(false);
   };
 
   const selectClass =

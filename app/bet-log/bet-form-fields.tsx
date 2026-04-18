@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import NumberInput from "../inputs/bet-amount-input";
 import type { Line } from "../model/line";
 import type { Team } from "../model/team";
@@ -11,8 +12,6 @@ type BetFormFieldsProps = {
   teams: Team[];
   lines: Line[];
   maps: { id: string; name: string }[];
-  onTeamPickerOpenChange: (isOpen: boolean) => void;
-  onLinePickerOpenChange: (isOpen: boolean) => void;
 };
 
 /**
@@ -25,21 +24,22 @@ export default function BetFormFields({
   teams,
   lines,
   maps,
-  onTeamPickerOpenChange,
-  onLinePickerOpenChange,
 }: BetFormFieldsProps) {
-  const userA = form.selectedUserIds[0]
-    ? users.find((u) => u.id === form.selectedUserIds[0]) ?? null
-    : null;
-  const userB = form.selectedUserIds[1]
-    ? users.find((u) => u.id === form.selectedUserIds[1]) ?? null
-    : null;
-  const teamA = form.selectedTeamIds[0]
-    ? teams.find((t) => t.id === form.selectedTeamIds[0]) ?? null
-    : null;
-  const teamB = form.selectedTeamIds[1]
-    ? teams.find((t) => t.id === form.selectedTeamIds[1]) ?? null
-    : null;
+  const [userA, userB] = useMemo(
+    () => [
+      users.find((u) => u.id === form.selectedUserIds[0]) ?? null,
+      users.find((u) => u.id === form.selectedUserIds[1]) ?? null,
+    ],
+    [users, form.selectedUserIds],
+  );
+
+  const [teamA, teamB] = useMemo(
+    () => [
+      teams.find((t) => t.id === form.selectedTeamIds[0]) ?? null,
+      teams.find((t) => t.id === form.selectedTeamIds[1]) ?? null,
+    ],
+    [teams, form.selectedTeamIds],
+  );
 
   return (
     <>
@@ -54,14 +54,12 @@ export default function BetFormFields({
         teamB={teamB}
         onTeamAChange={form.handleTeamAChange}
         onTeamBChange={form.handleTeamBChange}
-        onTeamPickerOpenChange={onTeamPickerOpenChange}
         maps={maps}
         selectedMapId={form.selectedMapId}
         onMapChange={form.setSelectedMapId}
         lines={lines}
         selectedLineId={form.selectedLineId}
         onLineChange={form.setSelectedLineId}
-        onLinePickerOpenChange={onLinePickerOpenChange}
         onOverUnderChange={form.setOverUnder}
         onHandicapChange={form.setHandicap}
         odds={form.odds}

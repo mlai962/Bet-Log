@@ -96,6 +96,22 @@ const DIRECTIONS: Record<DrawerDirection, DirectionConfig> = {
 const DISMISS_THRESHOLD_RATIO = 0.3;
 const OPEN_TRANSFORM = "translate(0, 0)";
 
+// Shared across all Drawer instances so closing one doesn't unlock body
+// scrolling while another is still open.
+let openDrawerCount = 0;
+const lockBodyScroll = () => {
+  openDrawerCount += 1;
+  if (openDrawerCount === 1) {
+    document.body.style.overflow = "hidden";
+  }
+};
+const unlockBodyScroll = () => {
+  openDrawerCount = Math.max(0, openDrawerCount - 1);
+  if (openDrawerCount === 0) {
+    document.body.style.overflow = "auto";
+  }
+};
+
 const closedTransform = (direction: DrawerDirection) => {
   switch (direction) {
     case "top":
@@ -128,10 +144,9 @@ const Drawer: React.FC<DrawerProps> = ({
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "auto";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
+    if (!isOpen) return;
+    lockBodyScroll();
+    return unlockBodyScroll;
   }, [isOpen]);
 
   // Reset any in-progress drag when the open state flips.

@@ -157,8 +157,6 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   // Add entry drawer state
   const [isAddEntryDrawerOpen, setIsAddEntryDrawerOpen] =
     useState<boolean>(false);
-  const [isTeamPickerOpen, setIsTeamPickerOpen] = useState<boolean>(false);
-  const [isLinePickerOpen, setIsLinePickerOpen] = useState<boolean>(false);
   const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState<boolean>(false);
   const [isSettleDrawerOpen, setIsSettleDrawerOpen] = useState<boolean>(false);
   const [isBalancesDrawerOpen, setIsBalancesDrawerOpen] =
@@ -271,8 +269,6 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
 
   const allDrawersClosed =
     !isAddEntryDrawerOpen &&
-    !isTeamPickerOpen &&
-    !isLinePickerOpen &&
     !isDeleteDrawerOpen &&
     !isSettleDrawerOpen &&
     !isBalancesDrawerOpen &&
@@ -639,8 +635,6 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
               teams={teams}
               lines={lines}
               maps={maps}
-              onTeamPickerOpenChange={setIsTeamPickerOpen}
-              onLinePickerOpenChange={setIsLinePickerOpen}
             />
 
             <div className="grid grid-cols-2 gap-2">

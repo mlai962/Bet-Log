@@ -29,48 +29,49 @@ const VISIBLE_DURATION_MS = 3500;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastState[]>([]);
-  const timeouts = useRef<Map<number, ReturnType<typeof setTimeout>[]>>(
-    new Map(),
-  );
+  const pending = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-  const dismiss = useCallback((id: number) => {
-    setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, visible: false } : t)),
-    );
-    const removeHandle = setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-      timeouts.current.delete(id);
-    }, ENTER_DURATION_MS);
-    timeouts.current.set(id, [
-      ...(timeouts.current.get(id) ?? []),
-      removeHandle,
-    ]);
+  const schedule = useCallback((fn: () => void, delay: number) => {
+    const handle = setTimeout(() => {
+      pending.current.delete(handle);
+      fn();
+    }, delay);
+    pending.current.add(handle);
+    return handle;
   }, []);
+
+  const dismiss = useCallback(
+    (id: number) => {
+      setToasts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, visible: false } : t)),
+      );
+      schedule(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, ENTER_DURATION_MS);
+    },
+    [schedule],
+  );
 
   const showToast = useCallback(
     (message: string, variant: ToastVariant = "error") => {
       const id = Date.now() + Math.random();
       setToasts((prev) => [...prev, { id, message, variant, visible: false }]);
 
-      const enterHandle = setTimeout(() => {
+      schedule(() => {
         setToasts((prev) =>
           prev.map((t) => (t.id === id ? { ...t, visible: true } : t)),
         );
       }, 16);
-      const autoDismissHandle = setTimeout(
-        () => dismiss(id),
-        VISIBLE_DURATION_MS,
-      );
-      timeouts.current.set(id, [enterHandle, autoDismissHandle]);
+      schedule(() => dismiss(id), VISIBLE_DURATION_MS);
     },
-    [dismiss],
+    [schedule, dismiss],
   );
 
   useEffect(() => {
-    const active = timeouts.current;
+    const handles = pending.current;
     return () => {
-      active.forEach((handles) => handles.forEach(clearTimeout));
-      active.clear();
+      handles.forEach(clearTimeout);
+      handles.clear();
     };
   }, []);
 

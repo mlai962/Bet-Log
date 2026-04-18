@@ -90,8 +90,6 @@ function BetEditDrawerBody({
           teams={teams}
           lines={lines}
           maps={maps}
-          onTeamPickerOpenChange={() => {}}
-          onLinePickerOpenChange={() => {}}
         />
 
         <div
