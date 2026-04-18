@@ -102,12 +102,15 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
 
   const [isShowBetSubmitSpinner, setIsShowBetSubmitSpinner] =
     useState<boolean>(false);
+  const [isCreateBetDrawerOpen, setIsCreateBetDrawerOpen] =
+    useState<boolean>(false);
   const handleBetSubmit = async () => {
     const data = form.buildWriteData(lines);
     if (!data) return;
 
     setIsShowBetSubmitSpinner(true);
     await addDoc(collection(db, "bets"), { ...data, winner: "" });
+    setIsCreateBetDrawerOpen(false);
   };
 
   const [editingBetId, setEditingBetId] = useState<string | null>(null);
@@ -274,6 +277,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     !isDeleteDrawerOpen &&
     !isSettleDrawerOpen &&
     !isBalancesDrawerOpen &&
+    !isCreateBetDrawerOpen &&
     editingBetId === null;
 
   const fabClass =
@@ -306,6 +310,39 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
             aria-label="Show balances"
           >
             $
+          </button>
+        )}
+
+        {/* New Bet */}
+        {allDrawersClosed && (
+          <button
+            onClick={() => setIsCreateBetDrawerOpen(true)}
+            className={fabClass}
+            aria-label="New bet"
+          >
+            <svg
+              className="w-7 h-7"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <rect
+                x="3"
+                y="3"
+                width="18"
+                height="18"
+                rx="3"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+              />
+              <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+              <circle cx="16" cy="8" r="1.4" fill="currentColor" />
+              <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+              <circle cx="8" cy="16" r="1.4" fill="currentColor" />
+              <circle cx="16" cy="16" r="1.4" fill="currentColor" />
+            </svg>
           </button>
         )}
         <Drawer
@@ -587,48 +624,61 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         gamba kappachungus deluxe
       </div>
 
-      <div className="w-full max-w-lg mx-auto space-y-2">
-        <BetFormFields
-          form={form}
-          users={users}
-          teams={teams}
-          lines={lines}
-          maps={maps}
-          onTeamPickerOpenChange={setIsTeamPickerOpen}
-          onLinePickerOpenChange={setIsLinePickerOpen}
-        />
+      {/* Create Bet Drawer */}
+      <BottomDrawer
+        isOpen={isCreateBetDrawerOpen}
+        onClose={() => setIsCreateBetDrawerOpen(false)}
+        direction="top"
+      >
+        <div className="space-y-4 text-purple-200">
+          <div className="text-xl font-bold text-center">New Bet</div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div
-            className="h-[82px] p-2 rounded-lg border-1 text-purple-200 overflow-hidden
-            bg-gray-400 dark:bg-purple-950/10
-            border-purple-500 dark:border-purple-700"
-          >
-            <input
-              type="date"
-              value={form.date}
-              className="w-full min-w-0 h-full focus:outline-none"
-              onChange={(e) => form.setDate(e.target.value)}
+          <div className="space-y-2">
+            <BetFormFields
+              form={form}
+              users={users}
+              teams={teams}
+              lines={lines}
+              maps={maps}
+              onTeamPickerOpenChange={setIsTeamPickerOpen}
+              onLinePickerOpenChange={setIsLinePickerOpen}
             />
-          </div>
 
-          <button
-            type="button"
-            onClick={() => handleBetSubmit()}
-            className="h-[82px] rounded-lg border-1 text-purple-200 relative
-            bg-gray-400 dark:bg-purple-950/10
-            border-purple-500 dark:border-purple-700
-            hover:bg-purple-200 dark:hover:bg-purple-600
-            active:bg-purple-300 dark:active:bg-purple-500
-            hover:cursor-pointer hover:disabled:cursor-not-allowed"
-          >
-            <span className={`${isShowBetSubmitSpinner ? "opacity-20" : ""}`}>
-              submit gamba
-            </span>
-            <Spinner isShowSpinner={isShowBetSubmitSpinner} />
-          </button>
+            <div className="grid grid-cols-2 gap-2">
+              <div
+                className="h-[82px] p-2 rounded-lg border-1 text-purple-200 overflow-hidden
+                bg-gray-400 dark:bg-purple-950/10
+                border-purple-500 dark:border-purple-700"
+              >
+                <input
+                  type="date"
+                  value={form.date}
+                  className="w-full min-w-0 h-full focus:outline-none"
+                  onChange={(e) => form.setDate(e.target.value)}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleBetSubmit()}
+                className="h-[82px] rounded-lg border-1 text-purple-200 relative
+                bg-gray-400 dark:bg-purple-950/10
+                border-purple-500 dark:border-purple-700
+                hover:bg-purple-200 dark:hover:bg-purple-600
+                active:bg-purple-300 dark:active:bg-purple-500
+                hover:cursor-pointer hover:disabled:cursor-not-allowed"
+              >
+                <span
+                  className={`${isShowBetSubmitSpinner ? "opacity-20" : ""}`}
+                >
+                  submit gamba
+                </span>
+                <Spinner isShowSpinner={isShowBetSubmitSpinner} />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </BottomDrawer>
 
       <div className="w-full min-h-32 relative">
         <div className={`mt-10 ${bets.length === 0 ? "block" : "hidden"}`}>
