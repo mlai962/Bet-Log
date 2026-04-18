@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Handicap, OverUnder } from "../model/binary-option-and-number";
 import { LineType, type Line } from "../model/line";
 import type { Team } from "../model/team";
@@ -77,6 +77,23 @@ export default function BetSummary({
   const teamGroups = useMemo(() => groupTeams(teams), [teams]);
   const [linePickerOpen, setLinePickerOpen] = useState(false);
   const [lineSearch, setLineSearch] = useState("");
+
+  // Focus picker inputs imperatively when the drawer opens — the BottomDrawer
+  // is always mounted in the DOM (just translated off-screen), so autoFocus
+  // would fire on every mount and pop up the mobile keyboard even while the
+  // drawer is hidden.
+  const lineSearchRef = useRef<HTMLInputElement>(null);
+  const teamSearchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (linePickerOpen) lineSearchRef.current?.focus();
+  }, [linePickerOpen]);
+
+  useEffect(() => {
+    if (teamPickerSlot !== null && pickerScreen === "team") {
+      teamSearchRef.current?.focus();
+    }
+  }, [teamPickerSlot, pickerScreen]);
 
   const [overUnder, setOverUnder] = useState<OverUnder>(
     () => initialOverUnder ?? { over: true, value: 0.5 },
@@ -480,6 +497,7 @@ export default function BetSummary({
           {pickerScreen === "team" && (
             <>
               <input
+                ref={teamSearchRef}
                 type="text"
                 placeholder="Search teams..."
                 value={teamSearch}
@@ -487,7 +505,6 @@ export default function BetSummary({
                 className="w-full h-10 rounded-lg px-3 border-1 bg-transparent
                   border-purple-500 dark:border-purple-700
                   text-purple-200 focus:outline-none"
-                autoFocus
               />
               <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
                 {pickerTeams.map((t) => (
@@ -522,6 +539,7 @@ export default function BetSummary({
           <div className="text-xl font-bold text-center">Select Line</div>
 
           <input
+            ref={lineSearchRef}
             type="text"
             placeholder="Search lines..."
             value={lineSearch}
@@ -529,7 +547,6 @@ export default function BetSummary({
             className="w-full h-10 rounded-lg px-3 border-1 bg-transparent
               border-purple-500 dark:border-purple-700
               text-purple-200 focus:outline-none"
-            autoFocus
           />
 
           <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
