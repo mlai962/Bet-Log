@@ -118,7 +118,10 @@ function ToastViewport({
   if (typeof document === "undefined") return null;
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 px-4 pb-6 pointer-events-none">
+    <div
+      className="fixed inset-x-0 bottom-0 flex flex-col items-center gap-2 px-4 pb-6 pointer-events-none"
+      style={{ zIndex: 1000 }}
+    >
       {toasts.map((toast) => {
         const colors = VARIANT_CLASSES[toast.variant];
         return (
