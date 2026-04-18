@@ -32,8 +32,12 @@ type DirectionConfig = {
   crossAxis: string;
   border: string;
   rounded: string;
-  /** Edge the grab handle sits against. */
-  handleEdge: "top" | "bottom" | "left" | "right";
+  /** Absolute-positioning classes for the drag handle strip on the panel's exit edge. */
+  handleStrip: string;
+  /** Size classes for the pill inside the handle strip. */
+  pill: string;
+  /** Content padding on the exit edge so children don't overlap the handle. */
+  contentPadding: string;
 };
 
 const DIRECTIONS: Record<DrawerDirection, DirectionConfig> = {
@@ -44,7 +48,9 @@ const DIRECTIONS: Record<DrawerDirection, DirectionConfig> = {
     crossAxis: "left-0 right-0",
     border: "border-b-2 border-x-2",
     rounded: "rounded-b-2xl",
-    handleEdge: "bottom",
+    handleStrip: "bottom-0 left-0 right-0 h-8",
+    pill: "w-10 h-1.5",
+    contentPadding: "px-4 pt-12 pb-10",
   },
   bottom: {
     axis: "y",
@@ -53,7 +59,9 @@ const DIRECTIONS: Record<DrawerDirection, DirectionConfig> = {
     crossAxis: "left-0 right-0",
     border: "border-t-2 border-x-2",
     rounded: "rounded-t-2xl",
-    handleEdge: "top",
+    handleStrip: "top-0 left-0 right-0 h-8",
+    pill: "w-10 h-1.5",
+    contentPadding: "px-4 pt-12 pb-8",
   },
   left: {
     axis: "x",
@@ -62,7 +70,9 @@ const DIRECTIONS: Record<DrawerDirection, DirectionConfig> = {
     crossAxis: "top-0",
     border: "border-r-2 border-y-2",
     rounded: "rounded-r-2xl",
-    handleEdge: "right",
+    handleStrip: "right-0 top-0 bottom-0 w-8",
+    pill: "w-1.5 h-10",
+    contentPadding: "pl-4 pr-10 pt-12 pb-8",
   },
   right: {
     axis: "x",
@@ -71,15 +81,10 @@ const DIRECTIONS: Record<DrawerDirection, DirectionConfig> = {
     crossAxis: "top-0",
     border: "border-l-2 border-y-2",
     rounded: "rounded-l-2xl",
-    handleEdge: "left",
+    handleStrip: "left-0 top-0 bottom-0 w-8",
+    pill: "w-1.5 h-10",
+    contentPadding: "pl-10 pr-4 pt-12 pb-8",
   },
-};
-
-const HANDLE_EDGE_CLASS: Record<DirectionConfig["handleEdge"], string> = {
-  top: "top-2 left-1/2 -translate-x-1/2 w-10 h-1.5",
-  bottom: "bottom-2 left-1/2 -translate-x-1/2 w-10 h-1.5",
-  left: "left-2 top-1/2 -translate-y-1/2 h-10 w-1.5",
-  right: "right-2 top-1/2 -translate-y-1/2 h-10 w-1.5",
 };
 
 const DISMISS_THRESHOLD_RATIO = 0.3;
@@ -202,43 +207,45 @@ const Drawer: React.FC<DrawerProps> = ({
         role="dialog"
         aria-modal={isOpen}
       >
-        <div
-          className="relative flex justify-end p-3 touch-none select-none"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-        >
-          {swipeToDismiss && (
-            <div
-              aria-hidden="true"
-              className={`absolute rounded-full bg-purple-700/60 ${HANDLE_EDGE_CLASS[config.handleEdge]}`}
-            />
-          )}
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="cursor-pointer relative z-10"
+        {swipeToDismiss && (
+          <div
+            className={`absolute ${config.handleStrip} z-20 flex items-center justify-center touch-none select-none cursor-grab active:cursor-grabbing`}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            aria-hidden="true"
           >
-            <svg
-              className="w-6 h-6 dark:text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18 17.94 6M18 18 6.06 6"
-              />
-            </svg>
-          </button>
-        </div>
-        <div className="px-4 pb-8">{children}</div>
+            <div
+              className={`rounded-full bg-purple-700/60 ${config.pill}`}
+            />
+          </div>
+        )}
+
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-3 right-3 z-30 cursor-pointer"
+        >
+          <svg
+            className="w-6 h-6 dark:text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18 17.94 6M18 18 6.06 6"
+            />
+          </svg>
+        </button>
+
+        <div className={config.contentPadding}>{children}</div>
       </div>
     </>,
     document.body,
