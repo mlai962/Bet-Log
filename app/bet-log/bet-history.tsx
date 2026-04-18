@@ -7,8 +7,9 @@ import {
 } from "../model/bet";
 import { LineType } from "../model/line";
 import Spinner from "../common-components/spinner";
-import BottomDrawer from "../common-components/bottom-drawer";
+import Drawer from "../common-components/drawer";
 import SlideToConfirm from "../common-components/slide-to-confirm";
+import { useToast } from "../common-components/toast";
 
 type BetHistoryProps = {
   bets: Bet[];
@@ -18,6 +19,7 @@ type BetHistoryProps = {
   currentBetIdBeingSettled: string;
   onDeleteDrawerOpenChange?: (isOpen: boolean) => void;
   onSettleDrawerOpenChange?: (isOpen: boolean) => void;
+  onEditRequest?: (betId: string) => void;
 };
 
 export default function BetHistory({
@@ -28,7 +30,17 @@ export default function BetHistory({
   currentBetIdBeingSettled,
   onDeleteDrawerOpenChange,
   onSettleDrawerOpenChange,
+  onEditRequest,
 }: BetHistoryProps) {
+  const { showToast } = useToast();
+
+  const handleEditClick = (bet: Bet) => {
+    if (bet.winner !== "") {
+      showToast("unsettle this bet before editing");
+      return;
+    }
+    onEditRequest?.(bet.id);
+  };
   const [deletingBetId, setDeletingBetId] = useState<string | null>(null);
   const [settlingBetId, setSettlingBetId] = useState<string | null>(null);
 
@@ -58,7 +70,7 @@ export default function BetHistory({
 
   return (
     <>
-      <BottomDrawer
+      <Drawer
         isOpen={deletingBetId !== null}
         onClose={closeDeleteDrawer}
         direction="top"
@@ -73,8 +85,8 @@ export default function BetHistory({
             }}
           />
         </div>
-      </BottomDrawer>
-      <BottomDrawer
+      </Drawer>
+      <Drawer
         isOpen={settlingBetId !== null}
         onClose={closeSettleDrawer}
         direction="top"
@@ -110,7 +122,7 @@ export default function BetHistory({
             </div>
           )}
         </div>
-      </BottomDrawer>
+      </Drawer>
       <div className="w-full h-max flex justify-center">
         <div className="w-max space-y-1 flex flex-col">
           {bets.map((bet) => {
@@ -174,13 +186,15 @@ export default function BetHistory({
                       </svg>
 
                       <svg
-                        className="w-4 h-4 text-gray-800 dark:text-white"
+                        className="w-4 h-4 text-gray-800 dark:text-white
+                        hover:text-purple-400/75 cursor-pointer"
                         aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg"
                         width="24"
                         height="24"
                         fill="none"
                         viewBox="0 0 24 24"
+                        onClick={() => handleEditClick(bet)}
                       >
                         <path
                           stroke="currentColor"

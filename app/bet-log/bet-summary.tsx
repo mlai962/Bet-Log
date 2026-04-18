@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Handicap, OverUnder } from "../model/binary-option-and-number";
 import { LineType, type Line } from "../model/line";
 import type { Team } from "../model/team";
 import { getCategories, getLeagues, groupTeams } from "../model/team-grouping";
 import type { User } from "../model/user";
-import BottomDrawer from "../common-components/bottom-drawer";
+import Drawer from "../common-components/drawer";
 import FitText from "../common-components/fit-text";
 import BinaryOptionAndNumberInput, {
   BinaryOptionType,
@@ -21,19 +21,19 @@ type BetSummaryProps = {
   teamB: Team | null;
   onTeamAChange: (teamId: string) => void;
   onTeamBChange: (teamId: string) => void;
-  onTeamPickerOpenChange: (isOpen: boolean) => void;
   maps: { id: string; name: string }[];
   selectedMapId: string;
   onMapChange: (mapId: string) => void;
   lines: Line[];
   selectedLineId: string;
   onLineChange: (lineId: string) => void;
-  onLinePickerOpenChange: (isOpen: boolean) => void;
   onOverUnderChange: (val: OverUnder) => void;
   onHandicapChange: (val: Handicap) => void;
   odds: number | null;
   betAmount: number | null;
   date: string;
+  initialOverUnder?: OverUnder;
+  initialHandicap?: Handicap;
 };
 
 export default function BetSummary({
@@ -47,19 +47,19 @@ export default function BetSummary({
   teamB,
   onTeamAChange,
   onTeamBChange,
-  onTeamPickerOpenChange,
   maps,
   selectedMapId,
   onMapChange,
   lines,
   selectedLineId,
   onLineChange,
-  onLinePickerOpenChange,
   onOverUnderChange,
   onHandicapChange,
   odds,
   betAmount,
   date,
+  initialOverUnder,
+  initialHandicap,
 }: BetSummaryProps) {
   const [teamPickerSlot, setTeamPickerSlot] = useState<"A" | "B" | null>(null);
   const [pickerScreen, setPickerScreen] = useState<
@@ -74,14 +74,29 @@ export default function BetSummary({
   const [linePickerOpen, setLinePickerOpen] = useState(false);
   const [lineSearch, setLineSearch] = useState("");
 
-  const [overUnder, setOverUnder] = useState<OverUnder>({
-    over: true,
-    value: 0.5,
-  });
-  const [handicap, setHandicap] = useState<Handicap>({
-    plus: true,
-    value: 0.5,
-  });
+  // Focus picker inputs imperatively when the drawer opens — the Drawer
+  // is always mounted in the DOM (just translated off-screen), so autoFocus
+  // would fire on every mount and pop up the mobile keyboard even while the
+  // drawer is hidden.
+  const lineSearchRef = useRef<HTMLInputElement>(null);
+  const teamSearchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (linePickerOpen) lineSearchRef.current?.focus();
+  }, [linePickerOpen]);
+
+  useEffect(() => {
+    if (teamPickerSlot !== null && pickerScreen === "team") {
+      teamSearchRef.current?.focus();
+    }
+  }, [teamPickerSlot, pickerScreen]);
+
+  const [overUnder, setOverUnder] = useState<OverUnder>(
+    () => initialOverUnder ?? { over: true, value: 0.5 },
+  );
+  const [handicap, setHandicap] = useState<Handicap>(
+    () => initialHandicap ?? { plus: true, value: 0.5 },
+  );
 
   const TEAM_MAX_FONT_SIZE = 64;
   const [teamAFitSize, setTeamAFitSize] = useState<number | null>(null);
@@ -99,7 +114,6 @@ export default function BetSummary({
     setPickerLeague(null);
     setPickerCat(null);
     setTeamSearch("");
-    onTeamPickerOpenChange(true);
   };
 
   const closeTeamPicker = () => {
@@ -109,7 +123,6 @@ export default function BetSummary({
     setPickerLeague(null);
     setPickerCat(null);
     setTeamSearch("");
-    onTeamPickerOpenChange(false);
   };
 
   /** Advance picker after sport is chosen */
@@ -188,13 +201,11 @@ export default function BetSummary({
 
   const openLinePicker = () => {
     setLinePickerOpen(true);
-    onLinePickerOpenChange(true);
   };
 
   const closeLinePicker = () => {
     setLinePickerOpen(false);
     setLineSearch("");
-    onLinePickerOpenChange(false);
   };
 
   const selectClass =
@@ -341,6 +352,7 @@ export default function BetSummary({
             <div className="flex justify-center pt-1">
               <BinaryOptionAndNumberInput
                 type={BinaryOptionType.OVER_UNDER}
+                initialValue={initialOverUnder}
                 onChange={(val) => {
                   if (val instanceof OverUnder) {
                     setOverUnder(val);
@@ -355,6 +367,7 @@ export default function BetSummary({
             <div className="flex justify-center pt-1">
               <BinaryOptionAndNumberInput
                 type={BinaryOptionType.HANDICAP}
+                initialValue={initialHandicap}
                 onChange={(val) => {
                   if (val instanceof Handicap) {
                     setHandicap(val);
@@ -381,7 +394,7 @@ export default function BetSummary({
       </div>
 
       {/* Team picker drawer */}
-      <BottomDrawer
+      <Drawer
         isOpen={teamPickerSlot !== null}
         onClose={closeTeamPicker}
         direction="top"
@@ -476,6 +489,7 @@ export default function BetSummary({
           {pickerScreen === "team" && (
             <>
               <input
+                ref={teamSearchRef}
                 type="text"
                 placeholder="Search teams..."
                 value={teamSearch}
@@ -483,7 +497,6 @@ export default function BetSummary({
                 className="w-full h-10 rounded-lg px-3 border-1 bg-transparent
                   border-purple-500 dark:border-purple-700
                   text-purple-200 focus:outline-none"
-                autoFocus
               />
               <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
                 {pickerTeams.map((t) => (
@@ -506,10 +519,10 @@ export default function BetSummary({
             </>
           )}
         </div>
-      </BottomDrawer>
+      </Drawer>
 
       {/* Line picker drawer */}
-      <BottomDrawer
+      <Drawer
         isOpen={linePickerOpen}
         onClose={closeLinePicker}
         direction="top"
@@ -518,6 +531,7 @@ export default function BetSummary({
           <div className="text-xl font-bold text-center">Select Line</div>
 
           <input
+            ref={lineSearchRef}
             type="text"
             placeholder="Search lines..."
             value={lineSearch}
@@ -525,7 +539,6 @@ export default function BetSummary({
             className="w-full h-10 rounded-lg px-3 border-1 bg-transparent
               border-purple-500 dark:border-purple-700
               text-purple-200 focus:outline-none"
-            autoFocus
           />
 
           <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pb-1">
@@ -548,7 +561,7 @@ export default function BetSummary({
               ))}
           </div>
         </div>
-      </BottomDrawer>
+      </Drawer>
     </>
   );
 }

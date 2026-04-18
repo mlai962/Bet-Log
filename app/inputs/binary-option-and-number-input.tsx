@@ -9,16 +9,25 @@ export enum BinaryOptionType {
 type BinaryOptionAndNumberInputProps = {
   onChange: (binaryOption: OverUnder | Handicap) => void;
   type: BinaryOptionType;
+  initialValue?: OverUnder | Handicap;
+};
+
+const readInitial = (initial?: OverUnder | Handicap) => {
+  if (initial instanceof OverUnder) return { optionOne: initial.over, value: initial.value };
+  if (initial instanceof Handicap) return { optionOne: initial.plus, value: initial.value };
+  return { optionOne: true, value: 0.5 };
 };
 
 export default function BinaryOptionAndNumberInput({
   onChange,
   type,
+  initialValue,
 }: BinaryOptionAndNumberInputProps) {
-  const [isOptionOneSelected, setIsOptionOneSelected] = useState(true);
-  const [isOptionTwoSelected, setIsOptionTwoSelected] = useState(false);
+  const initial = readInitial(initialValue);
+  const [isOptionOneSelected, setIsOptionOneSelected] = useState(initial.optionOne);
+  const [isOptionTwoSelected, setIsOptionTwoSelected] = useState(!initial.optionOne);
 
-  const [value, setValue] = useState<number>(0.5);
+  const [value, setValue] = useState<number>(initial.value);
 
   const handleOptionChange = (isOptionOne: boolean) => {
     setIsOptionOneSelected(isOptionOne);
@@ -108,7 +117,7 @@ export default function BinaryOptionAndNumberInput({
         type="number"
         step="0.5"
         min="0.5"
-        defaultValue="0.5"
+        defaultValue={initial.value}
         onChange={handleValueChange}
       />
     </div>

@@ -3,6 +3,7 @@ type BetAmountInputProps = {
   placeholder: string;
   svgPath: string;
   className?: string;
+  defaultValue?: number;
 };
 
 export default function NumberInput({
@@ -10,6 +11,7 @@ export default function NumberInput({
   placeholder,
   svgPath,
   className,
+  defaultValue,
 }: BetAmountInputProps) {
   return (
     <div
@@ -43,6 +45,11 @@ export default function NumberInput({
         inputMode="decimal"
         enterKeyHint="done"
         placeholder={placeholder}
+        defaultValue={
+          defaultValue !== undefined && defaultValue !== 0
+            ? String(defaultValue)
+            : undefined
+        }
         onChange={(e) => {
           const raw = e.target.value;
 
