@@ -1,7 +1,5 @@
 import type {
-  DocumentData,
   DocumentReference,
-  DocumentSnapshot,
   Timestamp,
 } from "firebase/firestore";
 import type { BaseFirebaseDocument } from "./base-firebase-document";
@@ -43,38 +41,18 @@ export class Bet {
   constructor(
     dto: BetDto,
     id: string,
-    userA: DocumentSnapshot<User, DocumentData>,
-    userB: DocumentSnapshot<User, DocumentData>,
-    teamA: DocumentSnapshot<Team, DocumentData>,
-    teamB: DocumentSnapshot<Team, DocumentData>,
-    line: DocumentSnapshot<Line, DocumentData>,
+    userA: User,
+    userB: User,
+    teamA: Team,
+    teamB: Team,
+    line: Line,
   ) {
     this.id = id;
-
-    this.userA = {
-      ...userA.data()!,
-      id: userA.id,
-    };
-
-    this.userB = {
-      ...userB.data()!,
-      id: userB.id,
-    };
-
-    this.teamA = {
-      ...teamA.data()!,
-      id: teamA.id,
-    };
-
-    this.teamB = {
-      ...teamB.data()!,
-      id: teamB.id,
-    };
-
-    this.line = {
-      ...line.data()!,
-      id: line.id,
-    };
+    this.userA = userA;
+    this.userB = userB;
+    this.teamA = teamA;
+    this.teamB = teamB;
+    this.line = line;
 
     this.map = dto.map;
     this.extras = dto.extras as Record<string, any>;
