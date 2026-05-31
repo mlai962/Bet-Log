@@ -1,22 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LineType, type Line } from "../model/line";
 import type { Team } from "../model/team";
 import type { User } from "../model/user";
 import {
   Bet,
-  getBetOutcome,
   type BetDto,
 } from "../model/bet";
+import {
+  type BalancesDoc,
+  type BalanceBet,
+  betPairContribution,
+  computeBalances,
+  profitVs,
+  totalProfit,
+} from "../model/balances";
 import BetHistory from "./bet-history";
 import {
   addDoc,
   collection,
   CollectionReference,
-  deleteDoc,
   doc,
   getDoc,
+  increment,
   onSnapshot,
-  updateDoc,
+  writeBatch,
+  type WriteBatch,
+  type DocumentReference,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import Drawer from "../common-components/drawer";
@@ -42,11 +51,38 @@ const FIRESTORE_COLLECTION: Record<CollectionName, string> = {
   Lines: "lines",
 };
 
+/**
+ * Apply an old->new balance contribution change to the aggregate doc within a
+ * batch. Deltas are coalesced per pair key into a single increment so multiple
+ * writes to the same field in one batch don't clobber each other.
+ */
+const applyBalanceDeltas = (
+  batch: WriteBatch,
+  aggRef: DocumentReference<BalancesDoc>,
+  oldC: { key: string; amount: number } | null,
+  newC: { key: string; amount: number } | null,
+) => {
+  const deltas = new Map<string, number>();
+  if (oldC) deltas.set(oldC.key, (deltas.get(oldC.key) ?? 0) - oldC.amount);
+  if (newC)
+    deltas.set(
+      newC.key,
+      Math.round(((deltas.get(newC.key) ?? 0) + newC.amount) * 100) / 100,
+    );
+  const pairs: Record<string, ReturnType<typeof increment>> = {};
+  for (const [k, amt] of deltas) if (amt !== 0) pairs[k] = increment(amt);
+  if (Object.keys(pairs).length)
+    batch.set(aggRef, { pairs } as never, { merge: true });
+};
+
 export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const [users, setUsers] = useState<User[]>(_users);
   const [teams, setTeams] = useState<Team[]>(_teams);
   const [lines, setLines] = useState<Line[]>(_lines);
   const [bets, setBets] = useState<Bet[]>([]);
+  const [balances, setBalances] = useState<BalancesDoc>({ pairs: {} });
+
+  const aggRef = doc(db, "aggregates", "balances") as DocumentReference<BalancesDoc>;
 
   const [maps, setMaps] = useState<{ id: string; name: string }[]>([
     { id: "mapMatch", name: "Match" },
@@ -61,17 +97,35 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     const unsubscribe = onSnapshot(
       collection(db, "bets") as CollectionReference<BetDto>,
       async (snapshot) => {
+        // Resolve userA/userB/teamA/teamB/line from already-loaded collections
+        // (the DocumentReference carries its .id) — no per-bet getDoc reads.
+        const usersById = new Map(users.map((u) => [u.id, u]));
+        const teamsById = new Map(teams.map((t) => [t.id, t]));
+        const linesById = new Map(lines.map((l) => [l.id, l]));
+
         const bets = await Promise.all(
-          snapshot.docs.map(async (doc) => {
-            const docData = doc.data();
+          snapshot.docs.map(async (snapDoc) => {
+            const d = snapDoc.data();
 
-            const userA = await getDoc(docData.userA);
-            const userB = await getDoc(docData.userB);
-            const teamA = await getDoc(docData.teamA);
-            const teamB = await getDoc(docData.teamB);
-            const line = await getDoc(docData.line);
+            // Edge case: a reference may point at an entity created on another
+            // device after this session loaded. Fetch only those misses.
+            const userA =
+              usersById.get(d.userA.id) ??
+              ({ ...(await getDoc(d.userA)).data()!, id: d.userA.id } as User);
+            const userB =
+              usersById.get(d.userB.id) ??
+              ({ ...(await getDoc(d.userB)).data()!, id: d.userB.id } as User);
+            const teamA =
+              teamsById.get(d.teamA.id) ??
+              ({ ...(await getDoc(d.teamA)).data()!, id: d.teamA.id } as Team);
+            const teamB =
+              teamsById.get(d.teamB.id) ??
+              ({ ...(await getDoc(d.teamB)).data()!, id: d.teamB.id } as Team);
+            const line =
+              linesById.get(d.line.id) ??
+              ({ ...(await getDoc(d.line)).data()!, id: d.line.id } as Line);
 
-            return new Bet(docData, doc.id, userA, userB, teamA, teamB, line);
+            return new Bet(d, snapDoc.id, userA, userB, teamA, teamB, line);
           }),
         );
 
@@ -92,7 +146,36 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     );
 
     return () => unsubscribe();
+  }, [users, teams, lines]);
+
+  // Persisted balances aggregate — one tiny doc, updated at write-time.
+  useEffect(() => {
+    const unsubscribe = onSnapshot(aggRef, (snap) => {
+      setBalances(snap.data() ?? { pairs: {} });
+    });
+    return () => unsubscribe();
   }, []);
+
+  // DEV-only safety net: all bets are already in memory, so recompute and warn
+  // if the persisted aggregate ever drifts. Does not run in production.
+  const computedBalances = useMemo(() => computeBalances(bets as BalanceBet[]), [bets]);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!Object.keys(balances.pairs).length) return; // not backfilled yet
+    const keys = new Set([
+      ...Object.keys(balances.pairs),
+      ...Object.keys(computedBalances.pairs),
+    ]);
+    for (const k of keys) {
+      const a = balances.pairs[k] ?? 0;
+      const b = computedBalances.pairs[k] ?? 0;
+      if (Math.abs(a - b) > 0.01) {
+        console.warn(
+          `[balances drift] pair ${k}: aggregate=${a} computed=${b}`,
+        );
+      }
+    }
+  }, [computedBalances, balances]);
 
   const form = useBetFormState({
     maps,
@@ -117,7 +200,26 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     ? bets.find((b) => b.id === editingBetId) ?? null
     : null;
   const handleBetEditSave = async (betId: string, data: Partial<BetDto>) => {
-    await updateDoc(doc(db, "bets", betId), data);
+    const oldBet = bets.find((b) => b.id === betId);
+    const betRef = doc(db, "bets", betId);
+    const batch = writeBatch(db);
+    batch.update(betRef, data);
+    if (oldBet) {
+      const newView: BalanceBet = {
+        userA: { id: data.userA?.id ?? oldBet.userA.id },
+        userB: { id: data.userB?.id ?? oldBet.userB.id },
+        betAmount: data.betAmount ?? oldBet.betAmount,
+        odds: data.odds ?? oldBet.odds,
+        winner: data.winner ?? oldBet.winner,
+      };
+      applyBalanceDeltas(
+        batch,
+        aggRef,
+        betPairContribution(oldBet as unknown as BalanceBet),
+        betPairContribution(newView),
+      );
+    }
+    await batch.commit();
   };
 
   const [isShowBetSettlementSpinner, setIsShowBetSettlementSpinner] =
@@ -129,11 +231,20 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     setCurrentBetIdBeingSettled(betId);
 
     const betRef = doc(db, "bets", betId);
+    const oldBet = bets.find((b) => b.id === betId);
 
     try {
-      await updateDoc(betRef, {
-        winner: winner,
-      });
+      const batch = writeBatch(db);
+      batch.update(betRef, { winner });
+      if (oldBet) {
+        applyBalanceDeltas(
+          batch,
+          aggRef,
+          betPairContribution(oldBet as unknown as BalanceBet),
+          betPairContribution({ ...oldBet, winner } as unknown as BalanceBet),
+        );
+      }
+      await batch.commit();
 
       const updated = bets.map((bet) =>
         bet.id === betId ? { ...bet, winner: winner } : bet,
@@ -151,7 +262,18 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     setIsShowBetSettlementSpinner(true);
     setCurrentBetIdBeingSettled(betId);
 
-    await deleteDoc(doc(db, "bets", betId));
+    const oldBet = bets.find((b) => b.id === betId);
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "bets", betId));
+    if (oldBet) {
+      applyBalanceDeltas(
+        batch,
+        aggRef,
+        betPairContribution(oldBet as unknown as BalanceBet),
+        null,
+      );
+    }
+    await batch.commit();
   };
 
   // Add entry drawer state
@@ -278,6 +400,13 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const fabClass =
     "w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center";
 
+  // Read balances from the persisted aggregate; fall back to an in-memory
+  // computation until the one-time backfill has populated the aggregate doc.
+  const balanceSrc = Object.keys(balances.pairs).length
+    ? balances.pairs
+    : computedBalances.pairs;
+  const userIds = users.map((u) => u.id);
+
   return (
     <ToastProvider>
     <main className="flex-col p-3 space-y-4">
@@ -352,16 +481,14 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
                   <div className="font-extrabold underline">{u.name}</div>
                   <div>
                     Total Net Profit:{" "}
-                    {formatProfit(calculateProfit(u.name, "", bets))}
+                    {formatProfit(totalProfit(balanceSrc, u.id, userIds))}
                     {users
                       .filter((u2) => u2.id != u.id)
                       .map((u2) => {
                         return (
                           <div key={`${u.id}-${u2.id}-profit`}>
                             Profit vs {u2.name}:{" "}
-                            {formatProfit(
-                              calculateProfit(u.name, u2.name, bets),
-                            )}
+                            {formatProfit(profitVs(balanceSrc, u.id, u2.id))}
                           </div>
                         );
                       })}
@@ -703,32 +830,6 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     </ToastProvider>
   );
 }
-
-/**
- * userA: the user whose balance is being calculated, the return value is net profit relative to them
- * userB: the other user who userA's profit is being calculated against, EMPTY STRING if all users
- */
-const calculateProfit = (userA: string, userB: string, bets: Bet[]) => {
-  return bets.reduce((total, bet) => {
-    const outcome = getBetOutcome(bet);
-    if (!outcome) return total;
-
-    if (
-      bet.userA.name === userA &&
-      (bet.userB.name === userB || userB === "")
-    ) {
-      return total + outcome.userA;
-    }
-    if (
-      bet.userB.name === userA &&
-      (bet.userA.name === userB || userB === "")
-    ) {
-      return total + outcome.userB;
-    }
-
-    return total;
-  }, 0.0);
-};
 
 const formatProfit = (profit: number) => {
   return `${profit < 0 ? "-" : "+"}$${profit < 0 ? -profit : profit}`;
