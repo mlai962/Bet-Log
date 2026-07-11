@@ -9,6 +9,12 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import BetHistorySkeleton from "./common-components/bet-history-skeleton";
+import {
+  AppTitle,
+  FAB_BASE_CLASS,
+  FAB_CONTAINER_CLASS,
+} from "./common-components/app-chrome";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -56,21 +62,18 @@ export default function App() {
 
 export function HydrateFallback() {
   return (
-    <div role="status" className="w-full p-8 animate-pulse">
-      <div className="h-64 w-full bg-gray-200 rounded-xl dark:bg-gray-700 mb-2.5"></div>
-      <div className="h-8 max-w-sm bg-gray-200 rounded-xl dark:bg-gray-700 mb-2.5"></div>
-      <div className="h-16 w-full bg-gray-200 rounded-xl dark:bg-gray-700 mb-2.5"></div>
-      <div className="h-8 max-w-sm bg-gray-200 rounded-xl dark:bg-gray-700 mb-2.5"></div>
-      <div className="h-32 w-full bg-gray-200 rounded-xl dark:bg-gray-700 mb-2.5"></div>
-      <div className="h-8 max-w-sm bg-gray-200 rounded-xl dark:bg-gray-700 mb-2.5"></div>
-      <div className="h-16 w-full bg-gray-200 rounded-xl dark:bg-gray-700 mb-2.5"></div>
-      <div className="h-max w-full max-sm:grid-cols-1 max-md:grid md:flex gap-4 max-md:grid-cols-2 md:justify-between">
-        <div className="h-16 w-64 bg-gray-200 rounded-xl dark:bg-gray-700"></div>
-        <div className="h-16 w-64 bg-gray-200 rounded-xl dark:bg-gray-700"></div>
-        <div className="h-16 w-64 bg-gray-200 rounded-xl dark:bg-gray-700"></div>
+    <main className="flex-col p-3 space-y-4">
+      <AppTitle />
+
+      <BetHistorySkeleton />
+
+      {/* Floating bottom-right button group */}
+      <div className={FAB_CONTAINER_CLASS}>
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i} className={FAB_BASE_CLASS} />
+        ))}
       </div>
-      <span className="sr-only">Loading...</span>
-    </div>
+    </main>
   );
 }
 
