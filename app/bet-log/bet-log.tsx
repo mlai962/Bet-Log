@@ -30,6 +30,12 @@ import {
 import { db } from "../firebase";
 import Drawer from "../common-components/drawer";
 import Spinner from "../common-components/spinner";
+import BetHistorySkeleton from "../common-components/bet-history-skeleton";
+import {
+  AppTitle,
+  FAB_BASE_CLASS,
+  FAB_CONTAINER_CLASS,
+} from "../common-components/app-chrome";
 import { useBetFormState } from "./use-bet-form-state";
 import BetFormFields from "./bet-form-fields";
 import BetEditDrawer from "./bet-edit-drawer";
@@ -397,8 +403,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     !isCreateBetDrawerOpen &&
     editingBetId === null;
 
-  const fabClass =
-    "w-14 h-14 rounded-full bg-gray-900 border-1 border-purple-800 text-purple-200 text-3xl font-bold shadow-lg hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center";
+  const fabClass = `${FAB_BASE_CLASS} text-purple-200 text-3xl font-bold hover:bg-gray-800 hover:border-2 cursor-pointer focus:outline-none flex items-center justify-center`;
 
   // Read balances from the persisted aggregate; fall back to an in-memory
   // computation until the one-time backfill has populated the aggregate doc.
@@ -411,7 +416,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     <ToastProvider>
     <main className="flex-col p-3 space-y-4">
       {/* Floating bottom-right button group */}
-      <div className="fixed bottom-4 right-4 flex items-end gap-2 z-50">
+      <div className={FAB_CONTAINER_CLASS}>
         {/* + FAB */}
         {allDrawersClosed && (
           <button
@@ -742,9 +747,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         </div>
       </Drawer>
 
-      <div className="w-full h-max text-4xl font-semibold text-center text-purple-200">
-        gamba kappachungus deluxe
-      </div>
+      <AppTitle />
 
       {/* Create Bet Drawer */}
       <Drawer
@@ -801,9 +804,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       </Drawer>
 
       <div className="w-full min-h-32 relative">
-        <div className={`mt-10 ${bets.length === 0 ? "block" : "hidden"}`}>
-          <Spinner isShowSpinner={bets.length === 0} />
-        </div>
+        {bets.length === 0 && <BetHistorySkeleton />}
 
         <BetHistory
           bets={bets}
