@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LineType, type Line } from "../model/line";
 import type { Team } from "../model/team";
 import type { User } from "../model/user";
@@ -23,6 +23,7 @@ import {
   getDoc,
   increment,
   onSnapshot,
+  setDoc,
   writeBatch,
   type WriteBatch,
   type DocumentReference,
@@ -87,6 +88,14 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const [lines, setLines] = useState<Line[]>(_lines);
   const [bets, setBets] = useState<Bet[]>([]);
   const [balances, setBalances] = useState<BalancesDoc>({ pairs: {} });
+  const [betsLoaded, setBetsLoaded] = useState(false);
+  const [balancesLoaded, setBalancesLoaded] = useState(false);
+
+  // Balance-aggregate writes use non-idempotent increment()s, so a duplicated
+  // handler invocation (e.g. two confirm events for one gesture) would apply
+  // the same delta twice. Refs update synchronously, unlike state, so this
+  // gate holds even when duplicate calls land before the next render.
+  const balanceWriteInFlightRef = useRef(false);
 
   const aggRef = doc(db, "aggregates", "balances") as DocumentReference<BalancesDoc>;
 
@@ -145,6 +154,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
           }),
         );
 
+        setBetsLoaded(true);
         setIsShowBetSubmitSpinner(false);
         setIsShowBetSettlementSpinner(false);
         setCurrentBetIdBeingSettled("");
@@ -158,30 +168,46 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   useEffect(() => {
     const unsubscribe = onSnapshot(aggRef, (snap) => {
       setBalances(snap.data() ?? { pairs: {} });
+      setBalancesLoaded(true);
     });
     return () => unsubscribe();
   }, []);
 
-  // DEV-only safety net: all bets are already in memory, so recompute and warn
-  // if the persisted aggregate ever drifts. Does not run in production.
+  // Self-healing safety net: every bet is already in memory, so the persisted
+  // aggregate can always be checked against a from-scratch recompute. If they
+  // disagree (e.g. a past duplicated increment left drifted values), overwrite
+  // the aggregate with the recomputed truth. Also acts as the initial
+  // backfill when the aggregate doc doesn't exist yet.
   const computedBalances = useMemo(() => computeBalances(bets as BalanceBet[]), [bets]);
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    if (!Object.keys(balances.pairs).length) return; // not backfilled yet
+    if (!betsLoaded || !balancesLoaded) return;
     const keys = new Set([
       ...Object.keys(balances.pairs),
       ...Object.keys(computedBalances.pairs),
     ]);
+    let hasDrift = false;
     for (const k of keys) {
-      const a = balances.pairs[k] ?? 0;
-      const b = computedBalances.pairs[k] ?? 0;
-      if (Math.abs(a - b) > 0.01) {
-        console.warn(
-          `[balances drift] pair ${k}: aggregate=${a} computed=${b}`,
-        );
+      if (Math.abs((balances.pairs[k] ?? 0) - (computedBalances.pairs[k] ?? 0)) > 0.005) {
+        hasDrift = true;
+        break;
       }
     }
-  }, [computedBalances, balances]);
+    if (!hasDrift) return;
+    // Debounce: the bets and balances listeners update in separate ticks, so a
+    // just-committed settlement looks like drift for a moment. Only repair
+    // drift that survives both listeners settling and no write in flight.
+    const timer = setTimeout(() => {
+      if (balanceWriteInFlightRef.current) return;
+      console.warn(
+        "[balances drift] persisted aggregate disagrees with recompute — repairing",
+        { persisted: balances.pairs, recomputed: computedBalances.pairs },
+      );
+      setDoc(aggRef, computedBalances).catch((error) =>
+        console.error("Error repairing balances aggregate:", error),
+      );
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [computedBalances, balances, betsLoaded, balancesLoaded]);
 
   const form = useBetFormState({
     maps,
@@ -206,26 +232,32 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     ? bets.find((b) => b.id === editingBetId) ?? null
     : null;
   const handleBetEditSave = async (betId: string, data: Partial<BetDto>) => {
-    const oldBet = bets.find((b) => b.id === betId);
-    const betRef = doc(db, "bets", betId);
-    const batch = writeBatch(db);
-    batch.update(betRef, data);
-    if (oldBet) {
-      const newView: BalanceBet = {
-        userA: { id: data.userA?.id ?? oldBet.userA.id },
-        userB: { id: data.userB?.id ?? oldBet.userB.id },
-        betAmount: data.betAmount ?? oldBet.betAmount,
-        odds: data.odds ?? oldBet.odds,
-        winner: data.winner ?? oldBet.winner,
-      };
-      applyBalanceDeltas(
-        batch,
-        aggRef,
-        betPairContribution(oldBet as unknown as BalanceBet),
-        betPairContribution(newView),
-      );
+    if (balanceWriteInFlightRef.current) return;
+    balanceWriteInFlightRef.current = true;
+    try {
+      const oldBet = bets.find((b) => b.id === betId);
+      const betRef = doc(db, "bets", betId);
+      const batch = writeBatch(db);
+      batch.update(betRef, data);
+      if (oldBet) {
+        const newView: BalanceBet = {
+          userA: { id: data.userA?.id ?? oldBet.userA.id },
+          userB: { id: data.userB?.id ?? oldBet.userB.id },
+          betAmount: data.betAmount ?? oldBet.betAmount,
+          odds: data.odds ?? oldBet.odds,
+          winner: data.winner ?? oldBet.winner,
+        };
+        applyBalanceDeltas(
+          batch,
+          aggRef,
+          betPairContribution(oldBet as unknown as BalanceBet),
+          betPairContribution(newView),
+        );
+      }
+      await batch.commit();
+    } finally {
+      balanceWriteInFlightRef.current = false;
     }
-    await batch.commit();
   };
 
   const [isShowBetSettlementSpinner, setIsShowBetSettlementSpinner] =
@@ -233,11 +265,15 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const [currentBetIdBeingSettled, setCurrentBetIdBeingSettled] =
     useState<string>("");
   const handleBetSettlement = async (betId: string, winner: string) => {
+    if (balanceWriteInFlightRef.current) return;
+    const oldBet = bets.find((b) => b.id === betId);
+    if (oldBet && oldBet.winner === winner) return; // no-op settle
+    balanceWriteInFlightRef.current = true;
+
     setIsShowBetSettlementSpinner(true);
     setCurrentBetIdBeingSettled(betId);
 
     const betRef = doc(db, "bets", betId);
-    const oldBet = bets.find((b) => b.id === betId);
 
     try {
       const batch = writeBatch(db);
@@ -259,27 +295,36 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       setBets(updated);
     } catch (error) {
       console.error("Error updating document:", error);
+    } finally {
+      balanceWriteInFlightRef.current = false;
     }
 
     setIsShowBetSettlementSpinner(false);
     setCurrentBetIdBeingSettled("");
   };
   const handleBetDeletion = async (betId: string) => {
+    if (balanceWriteInFlightRef.current) return;
+    balanceWriteInFlightRef.current = true;
+
     setIsShowBetSettlementSpinner(true);
     setCurrentBetIdBeingSettled(betId);
 
-    const oldBet = bets.find((b) => b.id === betId);
-    const batch = writeBatch(db);
-    batch.delete(doc(db, "bets", betId));
-    if (oldBet) {
-      applyBalanceDeltas(
-        batch,
-        aggRef,
-        betPairContribution(oldBet as unknown as BalanceBet),
-        null,
-      );
+    try {
+      const oldBet = bets.find((b) => b.id === betId);
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "bets", betId));
+      if (oldBet) {
+        applyBalanceDeltas(
+          batch,
+          aggRef,
+          betPairContribution(oldBet as unknown as BalanceBet),
+          null,
+        );
+      }
+      await batch.commit();
+    } finally {
+      balanceWriteInFlightRef.current = false;
     }
-    await batch.commit();
   };
 
   // Add entry drawer state
