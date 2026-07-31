@@ -40,6 +40,10 @@ export default function SlideToConfirm({
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  // Pointermove events are continuous-priority, so several can be processed
+  // before the setIsDragging(false) render lands — a state flag alone lets
+  // onConfirm fire once per stale event. A ref closes synchronously.
+  const hasConfirmedRef = useRef(false);
 
   const THUMB_SIZE = 56;
 
@@ -47,11 +51,12 @@ export default function SlideToConfirm({
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
+    hasConfirmedRef.current = false;
     setIsDragging(true);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging || !trackRef.current) return;
+    if (!isDragging || hasConfirmedRef.current || !trackRef.current) return;
     const trackRect = trackRef.current.getBoundingClientRect();
     const maxX = getMaxX();
     const newX = Math.max(
@@ -60,6 +65,7 @@ export default function SlideToConfirm({
     );
     setDragX(newX);
     if (newX >= maxX) {
+      hasConfirmedRef.current = true;
       setIsDragging(false);
       onConfirm();
     }
