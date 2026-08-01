@@ -6,13 +6,21 @@ import {
   Bet,
   type BetDto,
 } from "../model/bet";
+import type { Transfer, TransferDto } from "../model/transfer";
 import {
   type BalancesDoc,
   type BalanceBet,
+  type BalanceTransfer,
   betPairContribution,
   computeBalances,
+  computeTransferBalances,
+  owedVs,
+  pairsDrifted,
   profitVs,
+  totalOwed,
   totalProfit,
+  transferPairContribution,
+  transferredVs,
 } from "../model/balances";
 import BetHistory from "./bet-history";
 import {
@@ -24,6 +32,7 @@ import {
   increment,
   onSnapshot,
   setDoc,
+  Timestamp,
   writeBatch,
   type WriteBatch,
   type DocumentReference,
@@ -90,6 +99,12 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const [balances, setBalances] = useState<BalancesDoc>({ pairs: {} });
   const [betsLoaded, setBetsLoaded] = useState(false);
   const [balancesLoaded, setBalancesLoaded] = useState(false);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [transferBalances, setTransferBalances] = useState<BalancesDoc>({
+    pairs: {},
+  });
+  const [transfersLoaded, setTransfersLoaded] = useState(false);
+  const [transferBalancesLoaded, setTransferBalancesLoaded] = useState(false);
 
   // Balance-aggregate writes use non-idempotent increment()s, so a duplicated
   // handler invocation (e.g. two confirm events for one gesture) would apply
@@ -98,6 +113,7 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const balanceWriteInFlightRef = useRef(false);
 
   const aggRef = doc(db, "aggregates", "balances") as DocumentReference<BalancesDoc>;
+  const transferAggRef = doc(db, "aggregates", "transfers") as DocumentReference<BalancesDoc>;
 
   const [maps, setMaps] = useState<{ id: string; name: string }[]>([
     { id: "mapMatch", name: "Match" },
@@ -173,41 +189,102 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
     return () => unsubscribe();
   }, []);
 
+  // Money transferred between users, tracked in parallel with bet profit.
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "transfers") as CollectionReference<TransferDto>,
+      async (snapshot) => {
+        const usersById = new Map(users.map((u) => [u.id, u]));
+
+        const loaded = await Promise.all(
+          snapshot.docs.map(async (snapDoc) => {
+            const d = snapDoc.data();
+            const from =
+              usersById.get(d.from.id) ??
+              ({ ...(await getDoc(d.from)).data()!, id: d.from.id } as User);
+            const to =
+              usersById.get(d.to.id) ??
+              ({ ...(await getDoc(d.to)).data()!, id: d.to.id } as User);
+            return {
+              id: snapDoc.id,
+              from,
+              to,
+              amount: d.amount,
+              date: d.date,
+            } satisfies Transfer;
+          }),
+        );
+
+        setTransfers(
+          [...loaded].sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+        );
+        setTransfersLoaded(true);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [users]);
+
+  // Persisted transfers aggregate — same shape as the balances aggregate.
+  useEffect(() => {
+    const unsubscribe = onSnapshot(transferAggRef, (snap) => {
+      setTransferBalances(snap.data() ?? { pairs: {} });
+      setTransferBalancesLoaded(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Self-healing safety net: every bet is already in memory, so the persisted
   // aggregate can always be checked against a from-scratch recompute. If they
   // disagree (e.g. a past duplicated increment left drifted values), overwrite
   // the aggregate with the recomputed truth. Also acts as the initial
   // backfill when the aggregate doc doesn't exist yet.
   const computedBalances = useMemo(() => computeBalances(bets as BalanceBet[]), [bets]);
-  useEffect(() => {
-    if (!betsLoaded || !balancesLoaded) return;
-    const keys = new Set([
-      ...Object.keys(balances.pairs),
-      ...Object.keys(computedBalances.pairs),
-    ]);
-    let hasDrift = false;
-    for (const k of keys) {
-      if (Math.abs((balances.pairs[k] ?? 0) - (computedBalances.pairs[k] ?? 0)) > 0.005) {
-        hasDrift = true;
-        break;
-      }
-    }
-    if (!hasDrift) return;
-    // Debounce: the bets and balances listeners update in separate ticks, so a
-    // just-committed settlement looks like drift for a moment. Only repair
-    // drift that survives both listeners settling and no write in flight.
-    const timer = setTimeout(() => {
-      if (balanceWriteInFlightRef.current) return;
-      console.warn(
-        "[balances drift] persisted aggregate disagrees with recompute — repairing",
-        { persisted: balances.pairs, recomputed: computedBalances.pairs },
-      );
-      setDoc(aggRef, computedBalances).catch((error) =>
-        console.error("Error repairing balances aggregate:", error),
-      );
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [computedBalances, balances, betsLoaded, balancesLoaded]);
+  const computedTransferBalances = useMemo(
+    () => computeTransferBalances(transfers as BalanceTransfer[]),
+    [transfers],
+  );
+
+  // Debounce: the source and aggregate listeners update in separate ticks, so
+  // a just-committed write looks like drift for a moment. Only repair drift
+  // that survives both listeners settling and no write in flight.
+  const useAggregateRepair = (
+    label: string,
+    ready: boolean,
+    persisted: BalancesDoc,
+    recomputed: BalancesDoc,
+    ref: DocumentReference<BalancesDoc>,
+  ) =>
+    useEffect(() => {
+      if (!ready) return;
+      if (!pairsDrifted(persisted.pairs, recomputed.pairs)) return;
+      const timer = setTimeout(() => {
+        if (balanceWriteInFlightRef.current) return;
+        console.warn(
+          `[${label} drift] persisted aggregate disagrees with recompute — repairing`,
+          { persisted: persisted.pairs, recomputed: recomputed.pairs },
+        );
+        setDoc(ref, recomputed).catch((error) =>
+          console.error(`Error repairing ${label} aggregate:`, error),
+        );
+      }, 2000);
+      return () => clearTimeout(timer);
+    }, [ready, persisted, recomputed]);
+
+  useAggregateRepair(
+    "balances",
+    betsLoaded && balancesLoaded,
+    balances,
+    computedBalances,
+    aggRef,
+  );
+  useAggregateRepair(
+    "transfers",
+    transfersLoaded && transferBalancesLoaded,
+    transferBalances,
+    computedTransferBalances,
+    transferAggRef,
+  );
 
   const form = useBetFormState({
     maps,
@@ -324,6 +401,83 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
       await batch.commit();
     } finally {
       balanceWriteInFlightRef.current = false;
+    }
+  };
+
+  // Transfer entry form state
+  const [transferFromId, setTransferFromId] = useState<string>("");
+  const [transferToId, setTransferToId] = useState<string>("");
+  const [transferAmount, setTransferAmount] = useState<string>("");
+  const [transferDate, setTransferDate] = useState<string>(
+    () => new Date().toISOString().split("T")[0],
+  );
+  const [confirmingTransferDeleteId, setConfirmingTransferDeleteId] =
+    useState<string | null>(null);
+
+  const transferAmountNumber = Number(transferAmount);
+  const isTransferValid =
+    transferFromId !== "" &&
+    transferToId !== "" &&
+    transferFromId !== transferToId &&
+    Number.isFinite(transferAmountNumber) &&
+    transferAmountNumber > 0;
+
+  const handleTransferSubmit = async () => {
+    if (!isTransferValid) return;
+    if (balanceWriteInFlightRef.current) return;
+    balanceWriteInFlightRef.current = true;
+
+    try {
+      const amount = Math.round(transferAmountNumber * 100) / 100;
+      const batch = writeBatch(db);
+      const transferRef = doc(collection(db, "transfers"));
+      batch.set(transferRef, {
+        from: doc(db, "users", transferFromId),
+        to: doc(db, "users", transferToId),
+        amount,
+        date: Timestamp.fromDate(new Date(transferDate)),
+      });
+      applyBalanceDeltas(
+        batch,
+        transferAggRef,
+        null,
+        transferPairContribution({
+          from: { id: transferFromId },
+          to: { id: transferToId },
+          amount,
+        }),
+      );
+      await batch.commit();
+      setTransferAmount("");
+    } catch (error) {
+      console.error("Error recording transfer:", error);
+    } finally {
+      balanceWriteInFlightRef.current = false;
+    }
+  };
+
+  const handleTransferDeletion = async (transferId: string) => {
+    if (balanceWriteInFlightRef.current) return;
+    balanceWriteInFlightRef.current = true;
+
+    try {
+      const oldTransfer = transfers.find((t) => t.id === transferId);
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "transfers", transferId));
+      if (oldTransfer) {
+        applyBalanceDeltas(
+          batch,
+          transferAggRef,
+          transferPairContribution(oldTransfer as unknown as BalanceTransfer),
+          null,
+        );
+      }
+      await batch.commit();
+    } catch (error) {
+      console.error("Error deleting transfer:", error);
+    } finally {
+      balanceWriteInFlightRef.current = false;
+      setConfirmingTransferDeleteId(null);
     }
   };
 
@@ -455,6 +609,9 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
   const balanceSrc = Object.keys(balances.pairs).length
     ? balances.pairs
     : computedBalances.pairs;
+  const transferSrc = Object.keys(transferBalances.pairs).length
+    ? transferBalances.pairs
+    : computedTransferBalances.pairs;
   const userIds = users.map((u) => u.id);
 
   return (
@@ -521,31 +678,197 @@ export function BetLog({ _users, _teams, _lines }: BetLogProps) {
         )}
         <Drawer
           isOpen={isBalancesDrawerOpen}
-          onClose={() => setIsBalancesDrawerOpen(false)}
+          onClose={() => {
+            setIsBalancesDrawerOpen(false);
+            setConfirmingTransferDeleteId(null);
+          }}
           direction="right"
+          size="w-96 max-w-[92vw]"
         >
-          <div className="flex-col space-y-4">
-            {users.map((u) => {
-              return (
-                <div key={`${u.id}-profit`}>
-                  <div className="font-extrabold underline">{u.name}</div>
-                  <div>
-                    Total Net Profit:{" "}
-                    {formatProfit(totalProfit(balanceSrc, u.id, userIds))}
+          <div className="flex flex-col space-y-5 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain pr-1">
+            {/* Per-user balances: profit from bets, transfers, and what's left owing */}
+            <div className="space-y-4">
+              {users.map((u) => {
+                return (
+                  <div key={`${u.id}-profit`}>
+                    <div className="font-extrabold underline">{u.name}</div>
+                    <div>
+                      Total Net Profit:{" "}
+                      {formatProfit(totalProfit(balanceSrc, u.id, userIds))}
+                    </div>
+                    <div>
+                      Total Unsettled:{" "}
+                      {formatProfit(
+                        totalOwed(balanceSrc, transferSrc, u.id, userIds),
+                      )}
+                    </div>
                     {users
                       .filter((u2) => u2.id != u.id)
                       .map((u2) => {
+                        const profit = profitVs(balanceSrc, u.id, u2.id);
+                        const paid = transferredVs(transferSrc, u.id, u2.id);
+                        const owed = owedVs(
+                          balanceSrc,
+                          transferSrc,
+                          u.id,
+                          u2.id,
+                        );
                         return (
-                          <div key={`${u.id}-${u2.id}-profit`}>
-                            Profit vs {u2.name}:{" "}
-                            {formatProfit(profitVs(balanceSrc, u.id, u2.id))}
+                          <div
+                            key={`${u.id}-${u2.id}-profit`}
+                            className="mt-1 text-sm"
+                          >
+                            <div>
+                              Profit vs {u2.name}: {formatProfit(profit)}
+                            </div>
+                            <div className="text-purple-400">
+                              {paid === 0
+                                ? `no transfers with ${u2.name}`
+                                : paid > 0
+                                ? `paid ${u2.name} $${paid}`
+                                : `received $${-paid} from ${u2.name}`}
+                            </div>
+                            <div
+                              className={
+                                owed > 0
+                                  ? "text-purple-300 font-semibold"
+                                  : owed < 0
+                                  ? "text-red-400 font-semibold"
+                                  : "text-purple-500"
+                              }
+                            >
+                              {owed === 0
+                                ? `settled up with ${u2.name}`
+                                : owed > 0
+                                ? `${u2.name} owes $${owed}`
+                                : `owes ${u2.name} $${-owed}`}
+                            </div>
                           </div>
                         );
                       })}
                   </div>
+                );
+              })}
+            </div>
+
+            {/* Record a transfer between two users */}
+            <div className="space-y-2 border-t border-purple-800 pt-3">
+              <div className="font-extrabold">Record Transfer</div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={transferFromId}
+                  onChange={(e) => setTransferFromId(e.target.value)}
+                  className={teamFieldSelectClass}
+                  aria-label="Transfer from"
+                >
+                  <option value="" className="bg-gray-900">
+                    from...
+                  </option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id} className="bg-gray-900">
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+                <span aria-hidden="true">→</span>
+                <select
+                  value={transferToId}
+                  onChange={(e) => setTransferToId(e.target.value)}
+                  className={teamFieldSelectClass}
+                  aria-label="Transfer to"
+                >
+                  <option value="" className="bg-gray-900">
+                    to...
+                  </option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id} className="bg-gray-900">
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder="amount $"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className={teamFieldInputClass}
+                  aria-label="Transfer amount"
+                />
+                <input
+                  type="date"
+                  value={transferDate}
+                  onChange={(e) => setTransferDate(e.target.value)}
+                  className={teamFieldInputClass}
+                  aria-label="Transfer date"
+                />
+              </div>
+              <button
+                onClick={handleTransferSubmit}
+                disabled={!isTransferValid}
+                className="w-full h-10 rounded-lg border-1 font-semibold
+                  bg-gray-400 dark:bg-purple-950/10
+                  border-purple-500 dark:border-purple-700
+                  hover:bg-purple-200 dark:hover:bg-purple-600
+                  active:bg-purple-300 dark:active:bg-purple-500
+                  cursor-pointer focus:outline-none
+                  disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                save transfer
+              </button>
+            </div>
+
+            {/* Transfer history */}
+            <div className="space-y-1 border-t border-purple-800 pt-3">
+              <div className="font-extrabold">Transfer History</div>
+              {transfers.length === 0 && (
+                <div className="text-sm text-purple-500">no transfers yet</div>
+              )}
+              {transfers.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <div>
+                    {t.date.toDate().toLocaleDateString()} — {t.from.name} paid{" "}
+                    {t.to.name} ${t.amount}
+                  </div>
+                  {confirmingTransferDeleteId === t.id ? (
+                    <button
+                      onClick={() => handleTransferDeletion(t.id)}
+                      className="text-red-400 font-semibold cursor-pointer shrink-0"
+                    >
+                      confirm?
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingTransferDeleteId(t.id)}
+                      aria-label="Delete transfer"
+                      className="cursor-pointer shrink-0 text-purple-400 hover:text-red-500/75"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"
+                        />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </Drawer>
       </div>
