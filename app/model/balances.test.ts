@@ -1,11 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
   type BalanceBet,
+  type BalanceTransfer,
   betPairContribution,
   computeBalances,
+  computeTransferBalances,
+  owedVs,
   pairKey,
+  pairsDrifted,
   profitVs,
+  totalOwed,
   totalProfit,
+  transferPairContribution,
+  transferredVs,
 } from "./balances";
 
 // Same fixture + expected numbers as the BEFORE characterization (which ran
@@ -138,5 +145,93 @@ describe("delta invariant: incremental aggregate == full recompute", () => {
     apply(running, betPairContribution(bet2), null);
     live.splice(1, 1);
     assertParity();
+  });
+});
+
+// Transfers are tracked in parallel with profit: profit says who won what,
+// transfers say who has actually paid what, and owedVs nets the two.
+describe("transfers: pair aggregate and outstanding debt", () => {
+  const tf = (
+    from: { id: string },
+    to: { id: string },
+    amount: number,
+  ): BalanceTransfer => ({ from, to, amount });
+
+  it("stores the lower id's net payment to the higher id", () => {
+    // u1 pays u2: positive from the lower id's side.
+    expect(transferPairContribution(tf(ALICE, BOB, 40))).toEqual({
+      key: pairKey(ALICE.id, BOB.id),
+      amount: 40,
+    });
+    // u2 pays u1: negative from the lower id's side.
+    expect(transferPairContribution(tf(BOB, ALICE, 40))).toEqual({
+      key: pairKey(ALICE.id, BOB.id),
+      amount: -40,
+    });
+  });
+
+  it("rejects degenerate transfers", () => {
+    expect(transferPairContribution(tf(ALICE, ALICE, 40))).toBeNull();
+    expect(transferPairContribution(tf(ALICE, BOB, 0))).toBeNull();
+    expect(transferPairContribution(tf(ALICE, BOB, -5))).toBeNull();
+  });
+
+  it("nets opposing transfers within a pair", () => {
+    const { pairs } = computeTransferBalances([
+      tf(ALICE, BOB, 100),
+      tf(BOB, ALICE, 30),
+    ]);
+    expect(transferredVs(pairs, ALICE.id, BOB.id)).toBe(70);
+    expect(transferredVs(pairs, BOB.id, ALICE.id)).toBe(-70);
+  });
+
+  it("nets transfers against profit into outstanding debt", () => {
+    // Alice is +150 profit vs Bob (Bob owes Alice 150).
+    const { pairs: profitPairs } = computeBalances([
+      { userA: ALICE, userB: BOB, betAmount: 100, odds: 2, winner: "userA" },
+      { userA: BOB, userB: ALICE, betAmount: 50, odds: 2, winner: "userB" },
+    ]);
+    expect(profitVs(profitPairs, ALICE.id, BOB.id)).toBe(150);
+
+    // Bob pays Alice 40 -> still owes 110.
+    const { pairs: transferPairs } = computeTransferBalances([
+      tf(BOB, ALICE, 40),
+    ]);
+    expect(owedVs(profitPairs, transferPairs, ALICE.id, BOB.id)).toBe(110);
+    expect(owedVs(profitPairs, transferPairs, BOB.id, ALICE.id)).toBe(-110);
+
+    // Bob settles in full -> nothing outstanding, profit history untouched.
+    const settled = computeTransferBalances([tf(BOB, ALICE, 150)]).pairs;
+    expect(owedVs(profitPairs, settled, ALICE.id, BOB.id)).toBe(0);
+    expect(profitVs(profitPairs, ALICE.id, BOB.id)).toBe(150);
+
+    // Overpayment flips the direction of the debt.
+    const overpaid = computeTransferBalances([tf(BOB, ALICE, 200)]).pairs;
+    expect(owedVs(profitPairs, overpaid, ALICE.id, BOB.id)).toBe(-50);
+  });
+
+  it("totalOwed sums outstanding debt across users and stays zero-sum", () => {
+    const { pairs: profitPairs } = computeBalances(FIXTURE);
+    const { pairs: transferPairs } = computeTransferBalances([
+      tf(BOB, ALICE, 100), // Bob pays down part of the 150 he owes Alice
+      tf(CAROL, BOB, 200), // Carol settles with Bob in full
+    ]);
+
+    expect(totalOwed(profitPairs, transferPairs, ALICE.id, IDS)).toBe(80);
+    expect(totalOwed(profitPairs, transferPairs, BOB.id, IDS)).toBe(-50);
+    expect(totalOwed(profitPairs, transferPairs, CAROL.id, IDS)).toBe(-30);
+
+    const sum = IDS.reduce(
+      (s, id) => s + totalOwed(profitPairs, transferPairs, id, IDS),
+      0,
+    );
+    expect(sum).toBe(0);
+  });
+
+  it("pairsDrifted flags real drift and tolerates rounding noise", () => {
+    expect(pairsDrifted({ a: 10 }, { a: 10.001 })).toBe(false);
+    expect(pairsDrifted({ a: 10 }, { a: 10.02 })).toBe(true);
+    expect(pairsDrifted({}, { a: 5 })).toBe(true);
+    expect(pairsDrifted({ a: 0 }, {})).toBe(false);
   });
 });
